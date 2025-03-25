@@ -1,0 +1,217 @@
+/* MyProfile.css */
+.profile-title {
+  font-size: 30px;
+  font-weight: bold;
+  color: #3d2050;
+  margin-bottom: 20px;
+  font-weight: bold;
+  font-family: "Heebo", sans-serif;
+}
+
+/* Tabs Styling */
+.profile-container {
+  max-width: 800px;
+  margin: 50px auto;
+  text-align: center;
+  padding: 40px;
+  background: #f6e5fa;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.profile-header {
+  font-size: 24px;
+  font-weight: bold;
+  color: #562c72;
+  margin-bottom: 20px;
+}
+
+.profile-title {
+  font-size: 34px;
+  font-weight: bold;
+  color: #3d2050;
+  margin-bottom: 20px;
+  font-weight: bold;
+  font-family: "Heebo", sans-serif;
+}
+
+/* Tabs Styling */
+.nav-tabs {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 40px;
+  padding: 10px 5px 0 5px;
+  background: #3a1e4d;
+  border-color: #eedef8;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 18px;
+  list-style-type: none; /* Remove dots */
+}
+
+.nav-tabs .nav-link {
+  margin: 5px 10px 0 0; /* Add space between buttons */
+}
+
+.nav-tabs .nav-link:hover {
+  text-decoration: underline; /* Add underline on hover */
+}
+
+.nav-tabs .nav-link {
+  padding: 10px 35px;
+  font-size: 18px;
+  color: #eedef8;
+  border-radius: 8px 8px 0 0;
+  transition: background 0.3s ease;
+}
+
+.nav-tabs .nav-link.active {
+  background: #fefaff;
+  color: #442849;
+  font-weight: bold;
+  height: 54px;
+  border-radius: 8px 8px 0 0;
+}
+
+/* Form Styling */
+.profile-input {
+  width: 100%;
+  padding: 10px;
+  margin-top: 10px;
+  border: 2px solid #b290b9;
+  border-radius: 8px;
+  font-size: 16px;
+  text-align: right;
+  background: white;
+}
+
+.gender-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 15px;
+}
+
+.gender-option {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 16px;
+  color: #3a1e4d;
+}
+
+/* Preferences Section */
+.preferences-section {
+  margin-top: 20px;
+  text-align: right;
+}
+
+.preference-checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: right;
+  margin-top: 10px;
+}
+
+.preference-label {
+  font-size: 16px;
+  color: #3a1e4d;
+}
+.preference-label {
+  font-size: 16px;
+  color: #3a1e4d;
+}
+
+/* Save Button */
+.save-button {
+  width: 100%;
+  padding: 12px;
+  margin-top: 20px;
+  background: #562c72;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 18px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.profile-btn {
+  flex: 1;
+  margin: 5px;
+  padding: 10px;
+  background: #562c72;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.tab-content {
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.accordion {
+  margin-top: 20px;
+}
+
+.accordion-item {
+  border-radius: 5px;
+  margin-bottom: 10px;
+  width: 100%;
+  padding: 10px;
+  margin-top: 10px;
+  border: 2px solid #b290b9;
+  border-radius: 8px;
+  font-size: 16px;
+  transition: all 0.3s ease-in-out;
+}
+
+.accordion-header {
+  font-weight: bold;
+  color: #3a1e4d;
+  cursor: pointer;
+  padding: 10px;
+}
+
+.accordion-content {
+  display: none;
+  padding: 10px;
+  font-size: 14px;
+  color: #562c72;
+}
+
+/* Show content when active */
+.accordion-item.active .accordion-content {
+  display: block;
+}
+
+/* Add hover effect */
+.accordion-header:hover {
+  text-decoration: underline;
+}
+
+.input-field {
+  width: 100%;
+  padding: 10px;
+  margin-top: 10px;
+  border: 2px solid #b290b9;
+  border-radius: 8px;
+  font-size: 16px;
+  text-align: right;
+}
+
+.save-button:hover {
+  background: #3a1e4d;
+}
+
+/* Responsive Design */
+@media screen and (max-width: 500px) {
+  .profile-container {
+    width: 90%;
+    padding: 20px;
+  }
+}

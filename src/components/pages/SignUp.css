@@ -1,0 +1,138 @@
+/* Signup.css */
+.container {
+  max-width: 500px;
+  margin: 50px auto;
+  text-align: center;
+  padding: 40px;
+  background: #f6e5fa;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.input-field {
+  width: 100%;
+  padding: 10px;
+  margin-top: 10px;
+  border: 2px solid #b290b9;
+  border-radius: 8px;
+  font-size: 16px;
+  text-align: right;
+}
+
+.input-field-birthdate {
+  width: 70%;
+  padding: 10px;
+  margin-top: 10px;
+  border: 2px solid #b290b9;
+  border-radius: 8px;
+  font-size: 16px;
+  text-align: right;
+}
+
+.checkbox-container {
+  display: flex;
+  align-items: center;
+  justify-content: right;
+  margin-top: 10px;
+}
+
+.label-input-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.label-text {
+  font-size: 16px;
+  color: #3a1e4d;
+  font-weight: bold;
+  margin-left: 20px;
+}
+
+.checkbox-container input {
+  margin-left: 10px;
+  transform: scale(1.2);
+}
+
+.budget-container {
+  display: flex;
+  justify-content: space-evenly; /* Creates even spacing between options */
+  align-items: center;
+  margin-top: 10px;
+}
+
+.radio-label {
+  display: flex;
+  align-items: center;
+  gap: 5px; /* Adds a small gap between the radio button and text */
+  font-size: 14px;
+  color: #3a1e4d;
+}
+
+.budget-input {
+  width: 100%;
+  text-align: center;
+  margin-top: 12px;
+}
+
+.section-header {
+  font-size: 18px;
+  font-weight: bold;
+  margin-top: 20px;
+  color: #562c72;
+}
+
+.preferences-list {
+  text-align: right;
+  margin-top: 10px;
+}
+
+.preferences-list label {
+  display: block;
+  font-size: 16px;
+  margin-top: 5px;
+}
+
+/* Hide arrows in number input for Chrome, Safari, Edge, Opera */
+.budget-input::-webkit-outer-spin-button,
+.budget-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.button {
+  width: 100%;
+  padding: 10px;
+  margin-top: 15px;
+  background: #562c72;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 18px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.button:hover {
+  background: #3a1e4d;
+}
+
+select.input-field {
+  width: 30%;
+  padding: 10px;
+  margin-top: 10px;
+  border: 2px solid #b290b9;
+  border-radius: 8px;
+  font-size: 16px;
+  text-align: right;
+  background: white;
+  color: #3a1e4d;
+  direction: rtl;
+}
+
+@media screen and (max-width: 500px) {
+  .container {
+    width: 90%;
+    padding: 15px;
+  }
+}
