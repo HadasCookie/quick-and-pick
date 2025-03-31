@@ -1,179 +1,181 @@
 .shopping-cart-sidebar {
-    position: fixed;
-    left: -400px;
-    top: 0;
-    width: 360px;
-    height: 100vh;
-    background: #3a1e4d;
-    color: white;
-    transition: left 0.3s ease;
-    box-shadow: 5px 0 10px rgba(0, 0, 0, 0.2);
-    z-index: 1000; /* Ensure it's above other elements */
-    display: flex;
-    flex-direction: column;
-    padding: 10px;
+  position: fixed;
+  left: -400px;
+  top: 0;
+  width: 360px;
+  height: 100vh;
+  background: #3a1e4d;
+  color: white;
+  transition: left 0.3s ease;
+  box-shadow: 5px 0 10px rgba(0, 0, 0, 0.2);
+  z-index: 1000; /* Ensure it's above other elements */
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
 }
 
 .shopping-cart-sidebar.open {
-    left: 0;
+  left: 0;
 }
 
 .change-location-btn {
-    background: #e7baf2;
-    color: #3a1e4d;
-    border: none;
-    padding: 5px;
-    font-size: 18px;
-    font-weight: bold;
-    cursor: pointer;
-    border-radius: 5px;
-    margin: 5px 0;
+  background: #e7baf2;
+  color: #3a1e4d;
+  border: none;
+  padding: 5px;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  border-radius: 5px;
+  margin: 5px 0;
+}
+
+.change-location-btn:hover {
+  background: #f4c3ff;
+  color: #ffffff;
 }
 
 /* Header */
 .sidebar-header {
-    justify-content: space-between;
-    align-items: center;
-    padding: 15px;
-    font-size: 18px;
-    font-weight: bold;
-    border-bottom: 2px solid white;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  font-size: 18px;
+  font-weight: bold;
+  border-bottom: 2px solid white;
 }
 
 /* Close Button: Larger, Light Pink */
 .close-btn {
-    background: #e7baf2;
-    color: black;
-    border: none;
-    padding: 8px;
-    font-size: 18px;
-    font-weight: bold;
-    position: absolute;
-    right: 10px;
-    top: 10px;
-    cursor: pointer;
+  background: #e7baf2;
+  color: black;
+  border: none;
+  padding: 8px;
+  font-size: 18px;
+  font-weight: bold;
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  cursor: pointer;
 }
 
 .close-btn:hover {
-    background: #ff7d7d;
-    color: #ffffff;
+  background: #ff7d7d;
+  color: #ffffff;
 }
 
 .remove-item-btn {
-    border: none;
-    padding: 1px;
-    cursor: pointer;
-    font-weight: bold;
-    border-radius: 5px;
-    margin-left: auto; /* Push the button to the right */
-    font-size: 15px;
+  border: none;
+  padding: 1px;
+  cursor: pointer;
+  font-weight: bold;
+  border-radius: 5px;
+  margin-left: auto; /* Push the button to the right */
+  font-size: 15px;
 }
 
 /* Sidebar actions in one row */
 .sidebar-actions {
-    display: flex;
-    justify-content: space-between;
-    padding: 10px;
+  display: flex;
+  justify-content: space-between;
+  padding: 10px;
 }
 
 .action-btn {
-    flex: 1;
-    margin: 5px;
-    background: #e7baf2;
-    color: #1e1028;
-    border: none;
-    padding: 8px;
-    cursor: pointer;
-    font-weight: bold;
-    border-radius: 5px;
-    text-align: center;
+  flex: 1;
+  margin: 5px;
+  background: #e7baf2;
+  color: #1e1028;
+  border: none;
+  padding: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  border-radius: 5px;
+  text-align: center;
 }
 
 .action-btn:hover {
-    background: #d4a1e0;
-    color: #ffffff;
+  background: #d4a1e0;
+  color: #ffffff;
 }
 
 /* Cart Items Styling */
 .cart-items {
-    max-height: 75%;
-    overflow-y: auto;
-    padding: 5px;
-    background-color: white;
-    color: black;
-    border-radius: 5px;
-    margin: 10px 0;
+  max-height: 75%;
+  overflow-y: auto;
+  padding: 5px;
+  background-color: white;
+  color: black;
+  border-radius: 5px;
+  margin: 10px 0;
 }
 
 /* Individual Cart Item */
 .empty-cart {
-    text-align: center;
-    padding: 20px;
-    font-size: 16px;
-    color: #bbb;
+  text-align: center;
+  padding: 20px;
+  font-size: 16px;
+  color: #bbb;
 }
 
 .cart-item {
-    display: flex;
-    align-items: center;
-    padding: 20px;
-    border-bottom: 1px solid #e2cee4;
+  display: flex;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #e2cee4;
 }
 
 .cart-item img {
-    width: 100px;
-    height: 60px;
-    margin-right: 10px;
-    border-radius: 5px;
+  width: 100px;
+  height: 60px;
+  margin-right: 10px;
+  border-radius: 5px;
 }
 
 .item-details {
-    flex-grow: 1;
-    display: flex;
-    flex-direction: column;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .remove-item-btn {
-    background: none;
-    border: none;
-    font-size: 18px;
-    cursor: pointer;
-    align-self: flex-end;
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  align-self: flex-end;
 }
 
 .item-details {
-    flex-grow: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-
-} */
-
-.quantity-container {
-    display: flex;
-    align-items: center;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+*/ .quantity-container {
+  display: flex;
+  align-items: center;
 }
 
 .quantity-container input {
-    width: 40px;
-    text-align: right;
-    margin-right: 5px;
+  width: 40px;
+  text-align: right;
+  margin-right: 5px;
 }
 
 /* Ensure the 'Find Super' button is well placed */
 .find-super-btn {
-    margin-top: auto;
-    margin-bottom: bottom;
-    width: 100%;
-    padding: 15px;
-    background: #e7baf2;
-    color: #3a1e4d;
-    font-size: 18px;
-    cursor: pointer;
+  margin-top: auto;
+  margin-bottom: bottom;
+  width: 100%;
+  padding: 15px;
+  background: #e7baf2;
+  color: #3a1e4d;
+  font-size: 18px;
+  cursor: pointer;
 }
 
 .find-super-btn:hover {
-    background: #f4c3ff;
-    color: #ffffff;
+  background: #f4c3ff;
+  color: #ffffff;
 }
-

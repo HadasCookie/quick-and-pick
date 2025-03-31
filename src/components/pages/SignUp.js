@@ -1,10 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
+import { UserContext } from "../../context/UserContext"; // adjust path if needed
 import { useNavigate } from "react-router-dom";
 import "./SignUp.css";
 import Footer from "../Footer";
 
 const SignUp = () => {
   const navigate = useNavigate();
+  const { setUser } = useContext(UserContext);
 
   const [formData, setFormData] = useState({
     first_name: "",
@@ -66,10 +68,26 @@ const SignUp = () => {
       } else if (response.status === 400) {
         setMessage("נא למלא את כל השדות החיוניים 🛑");
       } else if (response.ok) {
-        localStorage.setItem(
-          "user",
-          JSON.stringify({ name: formData.first_name })
-        );
+        // Save full user data for future use
+        const user = {
+          first_name: formData.first_name,
+          last_name: formData.last_name,
+          email: formData.email,
+          phone: formData.phone,
+          birthDate: formData.birthDate,
+          gender: formData.gender,
+          city: formData.city,
+          supermarket_radius: formData.supermarket_radius,
+          disabled_permit: formData.disabledPermit, // must match what UserContext expects
+          preferences: formData.preferences,
+          budget: parseFloat(formData.budgetAmount) || 0,
+          newsletter: formData.newsletter,
+          marketingUpdates: formData.marketingUpdates,
+        };
+
+        localStorage.setItem("user", JSON.stringify(user));
+        setUser(user); // ✅ this updates the context
+
         alert("משתמש נרשם בהצלחה!");
         setMessage("!משתמש נרשם בהצלחה");
         setFormData({

@@ -7,12 +7,46 @@ export const UserProvider = ({ children }) => {
 
   useEffect(() => {
     const stored = localStorage.getItem("user");
+    console.log("Stored user data:", stored); // Debugging line
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
-        setUser(parsed);
-      } catch {
-        console.error("Invalid user JSON");
+
+        console.log("Parsed user data:", parsed); // Debugging line
+        // Parse preferences if they exist and are stringified
+        const preferences =
+          typeof parsed.preferences === "string"
+            ? JSON.parse(parsed.preferences)
+            : parsed.preferences || {};
+
+        // Parse other properties if needed
+        const radius =
+          typeof parsed.supermarket_radius === "string"
+            ? parseFloat(parsed.supermarket_radius)
+            : parsed.supermarket_radius || 5; // Default radius
+
+        const disabled_permit =
+          typeof parsed.disabled_permit === "string"
+            ? parsed.disabled_permit === "true"
+            : parsed.disabled_permit || false; // Default disabled parking
+
+        const budget =
+          typeof parsed.budget === "string"
+            ? parseFloat(parsed.budget)
+            : parsed.budget || 0; // Default budget
+
+        // Construct enriched user object
+        const enrichedUser = {
+          ...parsed,
+          preferences,
+          supermarket_radius: radius,
+          disabled_permit,
+          budget,
+        };
+
+        setUser(enrichedUser);
+      } catch (err) {
+        console.error("Invalid user JSON", err);
         localStorage.removeItem("user");
       }
     }

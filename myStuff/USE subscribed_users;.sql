@@ -22,4 +22,5 @@ CREATE TABLE users (
 );
 
 -- \sql
--- connect root@34.136.219.66
+-- \connect root@34.136.219.66
+-- gcloud sql connect subscribed-users-db --user=root

@@ -1,5 +1,6 @@
-import React, { useState } from "react";
-import "./LogIn.css"; // Reuse the styling for consistency
+import React, { useState, useContext } from "react";
+import { UserContext } from "../../context/UserContext";
+import "./LogIn.css";
 import { useNavigate } from "react-router-dom";
 import Footer from "../Footer";
 
@@ -7,6 +8,7 @@ const Login = () => {
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [message, setMessage] = useState("");
   const navigate = useNavigate();
+  const { setUser } = useContext(UserContext);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -29,8 +31,8 @@ const Login = () => {
         setMessage("התחברת בהצלחה! 🎉");
         console.log("Login Result:", result);
         localStorage.setItem("user", JSON.stringify(result.user));
+        setUser(result.user);
         navigate("/MyProfile");
-        window.location.reload();
       } else {
         setMessage(result.error || "שגיאה בהתחברות.");
       }

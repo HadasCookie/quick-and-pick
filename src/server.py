@@ -196,9 +196,9 @@ def login_user():
             return jsonify({"error": "Invalid credentials"}), 401
 
         # Return success response and return user details
-        cursor.execute("SELECT full_name, email FROM users WHERE id = %s", (user["id"],))
+        cursor.execute("SELECT first_name, email, preferences, supermarket_radius, disabled_permit FROM users WHERE id = %s", (user["id"],))
         the_user = cursor.fetchone()
-        return jsonify({"message": "Login successful", "user": {"id": user["id"], "name": the_user["full_name"], "email": the_user["email"] }}), 200
+        return jsonify({"message": "Login successful", "user": {"id": user["id"], "first_name": the_user["first_name"], "email": the_user["email"], "preferences": the_user["preferences"], "supermarket_radius": the_user["supermarket_radius"], "disabled_permit": the_user["disabled_permit"]}}), 200
 
 
     except Exception as e:
@@ -209,6 +209,42 @@ def login_user():
         if conn and cursor:
             cursor.close()
             conn.close()
+
+# change password
+@app.route("/api/change-password", methods=["POST"])
+def change_password():
+    data = request.get_json()
+    email = data.get("email")
+    current_password = data.get("currentPassword")
+    new_password = data.get("newPassword")
+
+    if not email or not current_password or not new_password:
+        return jsonify({"error": "Missing required fields"}), 400
+
+    # Connect to DB
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
+    user = cursor.fetchone()
+
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    
+    print("User from DB:", user)
+
+    if not bcrypt.checkpw(current_password.encode("utf-8"), user["password_hash"].encode("utf-8")):
+        return jsonify({"error": "Incorrect current password"}), 401
+
+    new_hashed = bcrypt.hashpw(new_password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+    cursor.execute("UPDATE users SET password_hash = %s WHERE email = %s", (new_hashed, email))
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    return jsonify({"message": "Password updated successfully"}), 200
+
 
 # Get All Users (For Testing)
 @app.route('/api/users', methods=['GET'])

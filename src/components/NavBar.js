@@ -75,7 +75,7 @@ function NavBar() {
                   הרשמה
                 </Link>
               ) : (
-                <div className="nav-links-mobile">שלום, {user.name}</div>
+                <div className="nav-links-mobile">שלום, {user.first_name}</div>
               )}
             </li>
           </ul>
@@ -97,7 +97,9 @@ function NavBar() {
                   }
                 }}
               >
-                <Button buttonStyle="btn--outline">שלום, {user.name}</Button>
+                <Button buttonStyle="btn--outline">
+                  שלום, {user.first_name}
+                </Button>
                 {showDropdown && (
                   <div className="dropdown-menu">
                     <div

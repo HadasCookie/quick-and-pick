@@ -208,6 +208,66 @@
   background: #3a1e4d;
 }
 
+/* Change Password Section */
+.change-password-section {
+  margin-top: 30px;
+  text-align: right;
+}
+
+.change-password-section h4 {
+  font-size: 22px;
+  color: #3a1e4d;
+  margin-bottom: 15px;
+  font-family: "Heebo", sans-serif;
+  text-align: center;
+}
+
+.change-password-form input {
+  width: 70%;
+  padding: 10px;
+  margin-top: 13px;
+  margin-bottom: 3px;
+  border: 2px solid #b290b9;
+  border-radius: 8px;
+  font-size: 16px;
+  background: white;
+  direction: rtl;
+  text-align: right;
+  display: block;
+}
+
+.change-password-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.password-message {
+  margin-top: 10px;
+  color: #562c72;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.change-password-form .profile-btn {
+  width: 20%;
+  padding: 12px;
+  margin-top: 15px;
+  background: #562c72;
+  color: #ffffff;
+  font-size: 18px;
+  font-family: "Heebo", sans-serif;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.change-password-form .profile-btn:hover {
+  background: #3a1e4d;
+}
+
 /* Responsive Design */
 @media screen and (max-width: 500px) {
   .profile-container {

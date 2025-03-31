@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
+import { UserContext } from "../../context/UserContext";
 import "./FindCheapest.css";
 import ShoppingCartSidebar from "../ShoppingCartSidebar";
 import Footer from "../Footer";
@@ -136,15 +137,33 @@ const FindCheapest = () => {
   const [selectedSubCategory, setSelectedSubCategory] = useState(null);
   const [products, setProducts] = useState(fakeProducts);
   const [selectedProductId, setSelectedProductId] = useState(null);
-  const [cartItems, setCartItems] = useState([]);
+  const { user } = useContext(UserContext);
+  const [cartItems, setCartItems] = useState(() => {
+    const storedUser = JSON.parse(localStorage.getItem("user"));
+    const savedCart = storedUser
+      ? localStorage.getItem(`cartItems_${storedUser.email}`)
+      : null;
+    return savedCart ? JSON.parse(savedCart) : [];
+  });
+
   const [cartMessage, setCartMessage] = useState("");
 
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentIndex((prevIndex) => (prevIndex + 1) % images.length);
     }, 5000);
+
     return () => clearInterval(interval);
-  }, []);
+  }, [images.length]);
+
+  useEffect(() => {
+    if (user?.email) {
+      localStorage.setItem(
+        `cartItems_${user.email}`,
+        JSON.stringify(cartItems)
+      );
+    }
+  }, [cartItems, user]);
 
   const handlePrev = () => {
     setCurrentIndex((prevIndex) =>
@@ -206,6 +225,13 @@ const FindCheapest = () => {
         return product;
       })
     );
+  };
+
+  const clearCart = () => {
+    setCartItems([]);
+    if (user?.email) {
+      localStorage.removeItem(`cartItems_${user.email}`);
+    }
   };
 
   const addToCart = (product) => {
@@ -307,6 +333,7 @@ const FindCheapest = () => {
           onClose={() => setIsCartOpen(false)}
           cartItems={cartItems}
           removeItem={removeItem}
+          clearCart={clearCart}
         />
 
         {/* Categories Section */}
