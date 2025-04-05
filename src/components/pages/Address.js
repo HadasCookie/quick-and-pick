@@ -4,6 +4,7 @@ import { LoadScript, Autocomplete } from "@react-google-maps/api";
 import "./Address.css";
 import { LocationContext } from "../../context/LocationContext";
 import { UserContext } from "../../context/UserContext";
+import { ListsContext } from "../../context/ListsContext";
 import Footer from "../Footer";
 
 const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
@@ -12,26 +13,36 @@ const libraries = ["places"];
 const Address = () => {
   const { address, setAddress } = useContext(LocationContext);
   const { user } = useContext(UserContext);
+  const { currentList, setCurrentList } = useContext(ListsContext);
   const [autocomplete, setAutocomplete] = useState(null);
   const [isLocationFetched, setIsLocationFetched] = useState(false);
   const navigate = useNavigate();
 
   // Supermarket filters
-  const [radius, setRadius] = useState(user?.supermarket_radius || 5);
-  const [accessibility, setAccessibility] = useState(
-    user?.disabled_permit || false
+  const [radius, setRadius] = useState(
+    currentList?.supermarket_radius || user?.supermarket_radius || 5
   );
-  const [hasDisabledParking, setHasDisabledParking] = useState(false);
-  const [hasFreeParking, setHasFreeParking] = useState(false);
-  const [hasDelivery, setHasDelivery] = useState(false);
+  const [accessibility, setAccessibility] = useState(
+    currentList?.accessibility || user?.disabled_permit || false
+  );
+  const [hasDisabledParking, setHasDisabledParking] = useState(
+    currentList?.has_disabled_parking || false
+  );
+  const [hasFreeParking, setHasFreeParking] = useState(
+    currentList?.has_free_parking || false
+  );
+  const [hasDelivery, setHasDelivery] = useState(
+    currentList?.has_delivery || false
+  );
   const [isOpenNow, setIsOpenNow] = useState(false);
 
-  // Update radius when user data changes
   useEffect(() => {
-    if (user?.supermarket_radius) {
-      setRadius(user.supermarket_radius);
+    if (currentList?.address) {
+      setAddress(currentList.address);
+      setIsLocationFetched(true);
+      setCurrentList(null);
     }
-  }, [user]);
+  }, [currentList, setAddress, setCurrentList]);
 
   // Dietary preferences
   const defaultPrefs = {
@@ -44,16 +55,22 @@ const Address = () => {
   };
 
   const [preferences, setPreferences] = useState(() => {
-    if (!user?.preferences) return defaultPrefs;
+    let prefs = defaultPrefs;
     try {
-      const parsed =
-        typeof user.preferences === "string"
-          ? JSON.parse(user.preferences)
-          : user.preferences;
-      return { ...defaultPrefs, ...parsed }; // Fill missing keys
-    } catch {
-      return defaultPrefs;
+      if (currentList?.preferences) {
+        prefs = { ...prefs, ...JSON.parse(currentList.preferences) };
+      } else if (user?.preferences) {
+        prefs = {
+          ...prefs,
+          ...(typeof user.preferences === "string"
+            ? JSON.parse(user.preferences)
+            : user.preferences),
+        };
+      }
+    } catch (e) {
+      console.error("Error parsing preferences:", e);
     }
+    return prefs;
   });
 
   const handlePreferenceChange = (key) => {

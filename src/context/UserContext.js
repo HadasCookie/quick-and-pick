@@ -7,12 +7,11 @@ export const UserProvider = ({ children }) => {
 
   useEffect(() => {
     const stored = localStorage.getItem("user");
-    console.log("Stored user data:", stored); // Debugging line
+    //console.log("Stored user data:", stored); // Debugging line
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
 
-        console.log("Parsed user data:", parsed); // Debugging line
         // Parse preferences if they exist and are stringified
         const preferences =
           typeof parsed.preferences === "string"
@@ -35,6 +34,14 @@ export const UserProvider = ({ children }) => {
             ? parseFloat(parsed.budget)
             : parsed.budget || 0; // Default budget
 
+        const created_at =
+          typeof parsed.created_at === "string"
+            ? new Date(parsed.created_at)
+                .toLocaleDateString("en-GB")
+                .replace(/\//g, "/")
+            : parsed.created_at ||
+              new Date().toLocaleDateString("en-GB").replace(/\//g, "/"); // Default registration date
+
         // Construct enriched user object
         const enrichedUser = {
           ...parsed,
@@ -42,6 +49,7 @@ export const UserProvider = ({ children }) => {
           supermarket_radius: radius,
           disabled_permit,
           budget,
+          created_at,
         };
 
         setUser(enrichedUser);

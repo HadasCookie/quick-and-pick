@@ -120,7 +120,7 @@ def register_user():
         disabled_permit = data.get("disabledPermit", False)
         preferences = json.dumps(data.get("preferences", {}))
         budget = data.get("budget")
-        budget_amount = float(data.get("budgetAmount") or 0)
+        budget_amount = int(data.get("budgetAmount") or 0)
         supermarket_radius = int(data.get("supermarket_radius") or 5)
         newsletter = data.get("newsletter", False)
         marketing_updates = data.get("marketingUpdates", False)
@@ -137,7 +137,7 @@ def register_user():
                 (first_name, last_name, email, password_hash, phone, birth_date, gender,
                  city, disabled_permit, preferences, budget, budget_amount, supermarket_radius,
                  newsletter, marketing_updates, subscription_status)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Inactive')"""
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Active')"""
         
         values = (
             first_name, last_name, email, hashed_password, phone, birth_date, gender, city,
@@ -185,21 +185,47 @@ def login_user():
         cursor = conn.cursor(dictionary=True)
 
         # Fetch user by email
-        cursor.execute("SELECT id, email, password_hash FROM users WHERE email = %s", (email,))
+        cursor.execute("""
+            SELECT id, email, password_hash, subscription_status 
+            FROM users 
+            WHERE email = %s
+        """, (email,))
         user = cursor.fetchone()
 
         if not user:
-            return jsonify({"error": "User not found"}), 404
+            return jsonify({"error": "משתמש לא נמצא ❔"}), 404
+
+        # Check if the user is inactive
+        if user["subscription_status"] != "Active":
+            return jsonify({"error": "החשבון שלך אינו פעיל 🚫"}), 403
 
         # Verify password
         if not bcrypt.checkpw(password.encode('utf-8'), user["password_hash"].encode('utf-8')):
-            return jsonify({"error": "Invalid credentials"}), 401
+            return jsonify({"error": "סיסמא לא נכונה ❌"}), 401
 
-        # Return success response and return user details
-        cursor.execute("SELECT first_name, email, preferences, supermarket_radius, disabled_permit FROM users WHERE id = %s", (user["id"],))
+        # Fetch and return user details
+        cursor.execute("""
+            SELECT first_name, email, preferences, supermarket_radius, 
+                   disabled_permit, created_at, budget, budget_amount 
+            FROM users 
+            WHERE id = %s
+        """, (user["id"],))
         the_user = cursor.fetchone()
-        return jsonify({"message": "Login successful", "user": {"id": user["id"], "first_name": the_user["first_name"], "email": the_user["email"], "preferences": the_user["preferences"], "supermarket_radius": the_user["supermarket_radius"], "disabled_permit": the_user["disabled_permit"]}}), 200
 
+        return jsonify({
+            "message": "משתמש התחבר בהצלחה ✅",
+            "user": {
+                "id": user["id"],
+                "first_name": the_user["first_name"],
+                "email": the_user["email"],
+                "preferences": the_user["preferences"],
+                "supermarket_radius": the_user["supermarket_radius"],
+                "disabled_permit": the_user["disabled_permit"],
+                "created_at": the_user["created_at"],
+                "budget": the_user["budget"],
+                "budget_amount": the_user["budget_amount"]
+            }
+        }), 200
 
     except Exception as e:
         print("❌ Unexpected Error:", e)
@@ -209,6 +235,7 @@ def login_user():
         if conn and cursor:
             cursor.close()
             conn.close()
+
 
 # change password
 @app.route("/api/change-password", methods=["POST"])
@@ -244,6 +271,156 @@ def change_password():
     conn.close()
 
     return jsonify({"message": "Password updated successfully"}), 200
+
+# Get user lists
+@app.route("/api/user-lists", methods=["GET"])
+def get_user_lists():
+    user_id = request.args.get("user_id")
+    if not user_id:
+        return jsonify({"error": "Missing user_id parameter"}), 400
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute(
+        "SELECT * FROM user_lists WHERE user_id = %s ORDER BY created_at DESC",
+        (user_id,)
+    )
+    lists = cursor.fetchall()
+
+    # Convert fields for frontend
+    for l in lists:
+        l["created_at"] = l["created_at"].strftime("%Y-%m-%d %H:%M:%S")
+        if "total_price" in l and l["total_price"] is not None:
+            l["total_price"] = float(l["total_price"])
+
+    print(lists)
+    cursor.close()
+    conn.close()
+    return jsonify(lists)
+
+# Update List Name
+@app.route("/api/update-list-name", methods=["POST"])
+def update_list_name():
+    data = request.get_json()
+    list_id = data.get("list_id")
+    new_name = data.get("list_name")
+
+    if not list_id or not new_name:
+        return jsonify({"error": "Missing list ID or new name"}), 400
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE user_lists SET list_name = %s WHERE id = %s",
+            (new_name, list_id)
+        )
+        conn.commit()
+        return jsonify({"message": "List name updated successfully"}), 200
+    except Exception as e:
+        print("Error updating list name:", e)
+        return jsonify({"error": "Failed to update list name"}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+# Update Favorite List
+@app.route("/api/update-list-favorite", methods=["POST"])
+def update_list_favorite():
+    data = request.get_json()
+    list_id = data.get("list_id")
+    is_favorite = data.get("is_favorite")
+
+    if list_id is None or is_favorite is None:
+        return jsonify({"error": "Missing list ID or favorite status"}), 400
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE user_lists SET is_favorite = %s WHERE id = %s",
+            (is_favorite, list_id)
+        )
+        conn.commit()
+        return jsonify({"message": "Favorite status updated successfully"}), 200
+    except Exception as e:
+        print("Error updating favorite status:", e)
+        return jsonify({"error": "Failed to update favorite status"}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+# Update users preferences
+@app.route("/api/update-preferences", methods=["POST"])
+def update_preferences():
+    data = request.get_json()
+    email = data.get("email")
+
+    if not email:
+        return jsonify({"error": "Missing email"}), 400
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            UPDATE users
+            SET preferences = %s,
+            budget = %s,
+            budget_amount = %s,
+            supermarket_radius = %s,
+            disabled_permit = %s
+            WHERE email = %s
+        """, (
+            json.dumps(data.get("preferences", {})),
+            data.get("budget", "weekly"),
+            data.get("budgetAmount", 0),
+            data.get("supermarketRadius", 5),
+            data.get("accessibility", 0),
+            email
+        ))
+
+        conn.commit()
+        return jsonify({"message": "Preferences updated successfully"}), 200
+
+    except Exception as e:
+        print("Error updating preferences:", e)
+        return jsonify({"error": "Failed to update preferences"}), 500
+    finally:
+        cursor.close()
+        conn.close()
+       
+# ✅ Close user account
+@app.route("/api/close-account", methods=["POST"])
+def close_account():
+    data = request.get_json()
+    email = data.get("email")
+
+    if not email:
+        return jsonify({"error": "Missing email"}), 400
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Set subscription_status to 'Inactive' for this user
+        cursor.execute(
+            "UPDATE users SET subscription_status = 'Inactive' WHERE email = %s",
+            (email,)
+        )
+
+        conn.commit()
+        return jsonify({"message": "Account closed successfully"}), 200
+
+    except Exception as e:
+        print("Error closing account:", e)
+        return jsonify({"error": "Failed to close account"}), 500
+
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 
 # Get All Users (For Testing)
