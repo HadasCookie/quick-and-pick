@@ -10,10 +10,11 @@ import FindCheapest from "./components/pages/FindCheapest";
 import MyProfile from "./components/pages/MyProfile";
 import InputRecipe from "./components/pages/InputRecipe";
 import LogIn from "./components/pages/LogIn";
-import { LocationProvider } from "./context/LocationContext"; // Import the LocationProvider
-import { UserProvider } from "./context/UserContext"; // Import the UserProvider
+import { LocationProvider } from "./context/LocationContext";
+import { UserProvider } from "./context/UserContext";
 import { CartProvider } from "./context/CartContext";
 import { ListsProvider } from "./context/ListsContext";
+import ChatBot from "./components/pages/ChatBot";
 
 function App() {
   return (
@@ -34,6 +35,7 @@ function App() {
                 <Route path="/MyProfile" element={<MyProfile />} />
                 <Route path="/input-recipe" element={<InputRecipe />} />
                 <Route path="/LogIn" element={<LogIn />} />
+                <Route path="/ChatBot" element={<ChatBot />} />
               </Routes>
             </Router>
           </CartProvider>

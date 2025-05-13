@@ -17,7 +17,7 @@ function Cards() {
             <CardItem
               src="images/find-shoppinglist-ai.jpg"
               text="AI יצירה של סל קניות מותאם אישית עם"
-              path="/products"
+              path="/ChatBot"
             />
           </ul>
           <ul className="cards__items">

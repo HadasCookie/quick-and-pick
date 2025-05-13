@@ -1,6 +1,7 @@
 import bcrypt
 from flask import Flask, json, request, jsonify
 from flask_cors import CORS
+from transformers import pipeline
 import pymysql
 import requests
 import os
@@ -8,16 +9,32 @@ import mysql.connector
 
 app = Flask(__name__)
 CORS(app)  # Allow requests from React frontend
+chatbot = pipeline('text2text-generation', model='google/flan-t5-small')
 
 # Database Configuration
-DB_HOST = "34.136.219.66"
+DB_HOST = "104.199.102.228"
 DB_USER = "root"
 DB_PASSWORD = os.getenv('DB_PASSWORD')
-DB_NAME = "subscribed_users"
+DB_NAME = "quickpick"
 
 # ✅ API Endpoints
 FOODS_DICTIONARY_URL = "https://www.foodsdictionary.co.il/services/c/getSuggestions.php"
 CHP_AUTOCOMPLETE_URL = "https://chp.co.il/autocompletion/product_extended"
+
+@app.route("/chat", methods=["POST"])
+def chat():
+    data = request.get_json()
+    user_input = data.get("message")
+
+    if not user_input:
+        return jsonify({"error": "No input provided"}), 400
+
+    # ✅ Correct call to the pipeline
+    bot_output = chatbot(user_input, max_length=100, do_sample=True)
+
+    # ✅ Return the generated text
+    return jsonify({"response": bot_output[0]['generated_text']})
+
 
 # ✅ Fetch suggestions from FoodsDictionary
 def fetch_suggestions_fd(search_term, page=1):

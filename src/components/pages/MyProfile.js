@@ -30,6 +30,7 @@ const MyProfile = () => {
   const [hasDelivery, setHasDelivery] = useState(false);
   const [showProductsPopup, setShowProductsPopup] = useState(false);
   const [activeProducts, setActiveProducts] = useState([]);
+  const [cartMessage, setCartMessage] = useState("");
 
   const handleReSearch = (list) => {
     setCurrentList(list);
@@ -591,7 +592,11 @@ const MyProfile = () => {
                               >
                                 ✏️
                               </button>
-
+                              {cartMessage && (
+                                <div className="cart-message">
+                                  {cartMessage}
+                                </div>
+                              )}
                               <button
                                 className={`star-btn ${
                                   list.is_favorite ? "starred" : ""
@@ -632,6 +637,23 @@ const MyProfile = () => {
                                       });
 
                                       setLists(updated);
+
+                                      // ⭐⭐ Add the notification message here ⭐⭐
+                                      const listName =
+                                        list.list_name || `רשימה #${list.id}`;
+                                      if (updatedStatus === 1) {
+                                        setCartMessage(
+                                          `⭐ הרשימה "${listName}" נוספה למועדפים`
+                                        );
+                                      } else {
+                                        setCartMessage(
+                                          `☆ הרשימה "${listName}" הוסרה מהמועדפים`
+                                        );
+                                      }
+                                      setTimeout(
+                                        () => setCartMessage(""),
+                                        2000
+                                      );
                                     }
                                   } catch (error) {
                                     console.error(
