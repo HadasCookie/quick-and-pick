@@ -10,10 +10,24 @@ const InputRecipe = () => {
   useEffect(() => {
     // Fetch or set product data here
     setProducts([
-      { name: "חלב", category: "מוצרי חלב" },
-      { name: "קמח", category: "מוצרים יבשים" },
-      { name: "סוכר", category: "מוצרי יסוד" },
-      { name: "מלח", category: "תבלינים" },
+      { name: "חלב סויה", category: "מוצרי חלב" },
+      { name: "חלב שקדים", category: "מוצרי חלב" },
+      { name: "חומץ", category: "מזון יבש" },
+      { name: "שמן", category: "מזון יבש" },
+      { name: "סוכר חום", category: "מזון יבש" },
+      { name: "תמצית וניל", category: "מזון יבש" },
+      { name: "רסק תפוחים", category: "מוצרי טבעוני" },
+      { name: "קמח כוסמין", category: "מזון יבש" },
+      { name: "קמח חיטה", category: "מזון יבש" },
+      { name: "אבקת קקאו", category: "מזון יבש" },
+      { name: "אבקת אפייה", category: "מזון יבש" },
+      { name: "קרם קוקוס", category: "מוצרי קירור" },
+      { name: "שוקולד מריר", category: "ממתקים" },
+      { name: "חמאת אגוזים", category: "ממרחים" },
+      { name: "סוכריות צבעוניות", category: "קישוטים" },
+      { name: "אגוזים", category: "קישוטים" },
+      { name: "תותים", category: "פירות" },
+      { name: "דובדבנים", category: "פירות" },
     ]);
   }, []);
 

@@ -68,28 +68,16 @@ const SignUp = () => {
       } else if (response.status === 400) {
         setMessage("נא למלא את כל השדות החיוניים 🛑");
       } else if (response.ok) {
-        // Save full user data for future use
-        const user = {
-          first_name: formData.first_name,
-          last_name: formData.last_name,
-          email: formData.email,
-          phone: formData.phone,
-          birthDate: formData.birthDate,
-          gender: formData.gender,
-          city: formData.city,
-          supermarket_radius: formData.supermarket_radius,
-          disabled_permit: formData.disabledPermit, // must match what UserContext expects
-          preferences: formData.preferences,
-          budget: parseFloat(formData.budgetAmount) || 0,
-          newsletter: formData.newsletter,
-          marketingUpdates: formData.marketingUpdates,
-        };
-
-        localStorage.setItem("user", JSON.stringify(user));
-        setUser(user); // ✅ this updates the context
+        // ✅ Use the user object returned from backend
+        if (result.user) {
+          localStorage.setItem("user", JSON.stringify(result.user));
+          setUser(result.user);
+        }
 
         alert("משתמש נרשם בהצלחה!");
         setMessage("!משתמש נרשם בהצלחה");
+
+        // Reset form fields
         setFormData({
           first_name: "",
           last_name: "",
@@ -115,6 +103,7 @@ const SignUp = () => {
           newsletter: false,
           marketingUpdates: false,
         });
+
         navigate("/MyProfile");
       } else {
         setMessage(result.error || "שגיאה לא צפויה. אנא נסה שוב.");

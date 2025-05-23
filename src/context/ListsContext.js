@@ -17,7 +17,6 @@ export const ListsProvider = ({ children }) => {
           `http://localhost:5000/api/user-lists?user_id=${user.id}`
         );
         const data = await response.json();
-        console.log("Fetched user lists:", data);
         setUserLists(data.slice(0, 5)); // latest 5
       } catch (error) {
         console.error("Error fetching user lists:", error);

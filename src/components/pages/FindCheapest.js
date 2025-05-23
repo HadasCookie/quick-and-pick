@@ -3,18 +3,20 @@ import { UserContext } from "../../context/UserContext";
 import "./FindCheapest.css";
 import ShoppingCartSidebar from "../ShoppingCartSidebar";
 import Footer from "../Footer";
+import { ListsContext } from "../../context/ListsContext";
 
 const images = ["/images/carousel1.jpg", "/images/carousel2.jpg"];
 
 // Fake Products Data
 const fakeProducts = [
-  // Fruits & Vegetables
+  // Fruits & Vegetables (measured by KG)
   {
     id: 1,
     name: "תפוח",
     category: "פירות וירקות",
     subcategory: "פירות",
     quantity: 0,
+    unit: "ק״ג",
     image: "/images/veggies/red-apple.jpg",
   },
   {
@@ -23,6 +25,7 @@ const fakeProducts = [
     category: "פירות וירקות",
     subcategory: "פירות",
     quantity: 0,
+    unit: "ק״ג",
     image: "/images/veggies/anannas.jpg",
   },
   {
@@ -31,6 +34,7 @@ const fakeProducts = [
     category: "פירות וירקות",
     subcategory: "פירות",
     quantity: 0,
+    unit: "ק״ג",
     image: "/images/veggies/orange.jpg",
   },
   {
@@ -39,6 +43,7 @@ const fakeProducts = [
     category: "פירות וירקות",
     subcategory: "ירקות",
     quantity: 0,
+    unit: "ק״ג",
     image: "/images/veggies/cucamber.jpg",
   },
   {
@@ -47,6 +52,7 @@ const fakeProducts = [
     category: "פירות וירקות",
     subcategory: "ירקות",
     quantity: 0,
+    unit: "ק״ג",
     image: "/images/veggies/gamba.jpg",
   },
   {
@@ -55,16 +61,18 @@ const fakeProducts = [
     category: "פירות וירקות",
     subcategory: "ירקות",
     quantity: 0,
+    unit: "ק״ג",
     image: "/images/veggies/onion.jpg",
   },
 
-  // Dairy & Eggs (מוצרי חלב וביצים)
+  // Dairy & Eggs (measured by Unit)
   {
     id: 7,
     name: "גבינה צהובה",
     category: "מוצרי חלב וביצים",
     subcategory: "חמאה גבינות צהובות וקשות",
     quantity: 0,
+    unit: "יח",
     image: "https://imageproxy.wolt.com/assets/6679480ea81b94465521a645",
   },
   {
@@ -73,6 +81,7 @@ const fakeProducts = [
     category: "מוצרי חלב וביצים",
     subcategory: "יוגורט ומעדנים",
     quantity: 0,
+    unit: "יח",
     image: "https://imageproxy.wolt.com/assets/67751b4672e07c6625dc2052",
   },
   {
@@ -81,6 +90,7 @@ const fakeProducts = [
     category: "מוצרי חלב וביצים",
     subcategory: "חלב",
     quantity: 0,
+    unit: "יח",
     image: "https://imageproxy.wolt.com/assets/66979cf2ddf40a236879fc9c",
   },
   {
@@ -89,6 +99,7 @@ const fakeProducts = [
     category: "מוצרי חלב וביצים",
     subcategory: "חלב",
     quantity: 0,
+    unit: "יח",
     image: "https://imageproxy.wolt.com/assets/66794626a81b944655219a08",
   },
   {
@@ -97,6 +108,7 @@ const fakeProducts = [
     category: "מוצרי חלב וביצים",
     subcategory: "חלב",
     quantity: 0,
+    unit: "יח",
     image: "https://imageproxy.wolt.com/assets/66979d3178d7d84d1e9b98af",
   },
   {
@@ -105,6 +117,7 @@ const fakeProducts = [
     category: "מוצרי חלב וביצים",
     subcategory: "חלב",
     quantity: 0,
+    unit: "יח",
     image: "https://imageproxy.wolt.com/assets/667947307cb0090848ace3bd",
   },
   {
@@ -113,6 +126,7 @@ const fakeProducts = [
     category: "מוצרי חלב וביצים",
     subcategory: "חלב",
     quantity: 0,
+    unit: "יח",
     image: "https://imageproxy.wolt.com/assets/66793b4e34063d58fe45e430",
   },
 ];
@@ -147,6 +161,7 @@ const FindCheapest = () => {
   });
 
   const [cartMessage, setCartMessage] = useState("");
+  const { currentList } = useContext(ListsContext);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -241,11 +256,18 @@ const FindCheapest = () => {
       if (existingItem) {
         return prevCart.map((item) =>
           item.id === product.id
-            ? { ...item, quantity: item.quantity + product.quantity }
+            ? {
+                ...item,
+                quantity: item.quantity + product.quantity,
+                unit: product.unit,
+              }
             : item
         );
       } else {
-        return [...prevCart, { ...product, quantity: product.quantity }];
+        return [
+          ...prevCart,
+          { ...product, quantity: product.quantity, unit: product.unit },
+        ];
       }
     });
 
@@ -334,6 +356,7 @@ const FindCheapest = () => {
           cartItems={cartItems}
           removeItem={removeItem}
           clearCart={clearCart}
+          currentList={currentList}
         />
 
         {/* Categories Section */}
@@ -818,11 +841,11 @@ const FindCheapest = () => {
               </button>
               <button
                 className={`subcategory-btn ${
-                  selectedSubCategory === "מוצרי שיער" ? "active" : ""
+                  selectedSubCategory === "מוצרי סבון ושיער" ? "active" : ""
                 }`}
-                onClick={() => handleSubCategoryClick("מוצרי שיער")}
+                onClick={() => handleSubCategoryClick("מוצרי סבון ושיער")}
               >
-                מוצרי שיער
+                מוצרי סבון ושיער
               </button>
               <button
                 className={`subcategory-btn ${

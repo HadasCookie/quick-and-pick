@@ -40,9 +40,26 @@ const Address = () => {
     if (currentList?.address) {
       setAddress(currentList.address);
       setIsLocationFetched(true);
-      setCurrentList(null);
     }
   }, [currentList, setAddress, setCurrentList]);
+
+  useEffect(() => {
+    if (user?.supermarket_attributes) {
+      try {
+        const parsed =
+          typeof user.supermarket_attributes === "string"
+            ? JSON.parse(user.supermarket_attributes)
+            : user.supermarket_attributes;
+
+        setAccessibility(parsed.is_supermarket_accessibility || false);
+        setHasDisabledParking(parsed.has_disabled_parking || false);
+        setHasFreeParking(parsed.has_free_parking || false);
+        setHasDelivery(parsed.has_delivery || false);
+      } catch (err) {
+        console.error("Failed to parse supermarket_attributes from user:", err);
+      }
+    }
+  }, [user]);
 
   // Dietary preferences
   const defaultPrefs = {
@@ -58,7 +75,7 @@ const Address = () => {
     let prefs = defaultPrefs;
     try {
       if (currentList?.preferences) {
-        prefs = { ...prefs, ...JSON.parse(currentList.preferences) };
+        prefs = { ...prefs, ...currentList.preferences };
       } else if (user?.preferences) {
         prefs = {
           ...prefs,
@@ -168,7 +185,34 @@ const Address = () => {
 
   const handleContinue = () => {
     if (isLocationFetched) {
-      // Optionally store preferences and filters somewhere (e.g. Context/Backend)
+      const supermarket_attributes = {
+        is_supermarket_accessibility: accessibility,
+        has_disabled_parking: hasDisabledParking,
+        has_free_parking: hasFreeParking,
+        has_delivery: hasDelivery,
+      };
+
+      setCurrentList({
+        address,
+        supermarket_radius: radius,
+        supermarket_attributes,
+        preferences,
+      });
+
+      // localStorage.setItem(
+      //   "user",
+      //   JSON.stringify({
+      //     ...user,
+      //     preferences,
+      //     supermarket_attributes: {
+      //       is_supermarket_accessibility: accessibility,
+      //       has_disabled_parking: hasDisabledParking,
+      //       has_free_parking: hasFreeParking,
+      //       has_delivery: hasDelivery,
+      //     },
+      //   })
+      // );
+
       navigate("/FindCheapest");
     }
   };

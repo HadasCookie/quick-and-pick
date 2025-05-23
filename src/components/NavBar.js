@@ -82,7 +82,9 @@ function NavBar() {
 
           {button &&
             (!user ? (
-              <Button buttonStyle="btn--outline">הרשמה</Button>
+              <Button buttonStyle="btn--outline" redirect={"/sign-up"}>
+                הרשמה
+              </Button>
             ) : (
               <div
                 className="user-dropdown"
@@ -97,7 +99,7 @@ function NavBar() {
                   }
                 }}
               >
-                <Button buttonStyle="btn--outline">
+                <Button buttonStyle="btn--outline" redirect={"/MyProfile"}>
                   שלום, {user.first_name}
                 </Button>
                 {showDropdown && (

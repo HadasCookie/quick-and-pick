@@ -8,18 +8,20 @@ function HeroSection() {
   const navigate = useNavigate();
   const isLoggedIn = !!localStorage.getItem("user");
 
+  const targetPath = isLoggedIn ? "/MyProfile" : "/LogIn";
+
   return (
     <div className="hero-container">
       <video src="/videos/video-2.mp4" autoPlay loop muted />
       <h1>חווית הקניות שלא הכרתם</h1>
       <p>?למה אתם מחכים</p>
       <div className="hero-btns">
-        <Link to={isLoggedIn ? "/MyProfile" : "/sign-up"}>
+        <Link to={targetPath} className="log-in-text">
           <Button
             className="btns"
             buttonStyle="btn--outline"
             buttonSize="btn--large"
-            onClick={() => navigate(isLoggedIn ? "/MyProfile" : "/sign-up")}
+            redirect={isLoggedIn ? "/MyProfile" : "/sign-up"}
           >
             {isLoggedIn ? "לפרופיל שלי" : "הרשמו עכשיו"}
           </Button>
@@ -30,7 +32,7 @@ function HeroSection() {
         </button>
       </div>
       <div className="log-in-link">
-        <Link to={isLoggedIn ? "/MyProfile" : "/LogIn"} className="log-in-text">
+        <Link to={targetPath} className="log-in-text">
           משתמש קיים? לחץ כאן
         </Link>
       </div>

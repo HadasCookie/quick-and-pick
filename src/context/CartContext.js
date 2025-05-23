@@ -13,7 +13,18 @@ export const CartProvider = ({ children }) => {
   }, [cartItems]);
 
   const addItem = (item) => {
-    setCartItems((prev) => [...prev, item]);
+    const unit =
+      item.category === "פירות וירקות" || item.category === "בשר עוף ודגים"
+        ? "ק״ג"
+        : "יחידה";
+
+    setCartItems((prev) => [
+      ...prev,
+      {
+        ...item,
+        unit,
+      },
+    ]);
   };
 
   const removeItem = (id) => {
@@ -22,8 +33,29 @@ export const CartProvider = ({ children }) => {
 
   const clearCart = () => setCartItems([]);
 
+  // Optional: utility function if you want to expose it here
+  const generateCartProducts = () => {
+    const result = {};
+    cartItems.forEach((item) => {
+      result[item.name] = {
+        price: item.price,
+        unit: item.unit,
+        quantity: item.quantity,
+      };
+    });
+    return result;
+  };
+
   return (
-    <CartContext.Provider value={{ cartItems, addItem, removeItem, clearCart }}>
+    <CartContext.Provider
+      value={{
+        cartItems,
+        addItem,
+        removeItem,
+        clearCart,
+        generateCartProducts,
+      }}
+    >
       {children}
     </CartContext.Provider>
   );

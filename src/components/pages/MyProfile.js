@@ -71,9 +71,7 @@ const MyProfile = () => {
     }
   }, [activeTab, userLists]);
 
-  useEffect(() => {
-    console.log("Loaded lists from context:", userLists);
-  }, [userLists]);
+  useEffect(() => {}, [userLists]);
 
   const toggleListOpen = (id) => {
     setActiveListId(activeListId === id ? null : id);
@@ -156,6 +154,7 @@ const MyProfile = () => {
 
   useEffect(() => {
     if (user) {
+      // Parse dietary preferences
       if (user?.preferences) {
         try {
           const parsedPreferences =
@@ -169,18 +168,44 @@ const MyProfile = () => {
         }
       }
 
+      // Parse supermarket accessibility preferences
+      if (user?.supermarket_attributes) {
+        try {
+          const parsedAttributes =
+            typeof user.supermarket_attributes === "string"
+              ? JSON.parse(user.supermarket_attributes)
+              : user.supermarket_attributes;
+
+          setAccessibility(
+            parsedAttributes.is_supermarket_accessibility || false
+          );
+          setHasDisabledParking(parsedAttributes.has_disabled_parking || false);
+          setHasFreeParking(parsedAttributes.has_free_parking || false);
+          setHasDelivery(parsedAttributes.has_delivery || false);
+        } catch (error) {
+          console.error("Failed to parse supermarket_attributes:", error);
+          setAccessibility(false);
+          setHasDisabledParking(false);
+          setHasFreeParking(false);
+          setHasDelivery(false);
+        }
+      }
+
       setBudget(user.budget || "weekly");
       setBudgetAmount(user.budget_amount || 0);
       setSupermarketRadius(user.supermarket_radius || 5);
-      setAccessibility(user.accessibility || false);
-      setHasDisabledParking(user.has_disabled_parking || false);
-      setHasFreeParking(user.has_free_parking || false);
-      setHasDelivery(user.has_delivery || false);
     }
   }, [user]);
 
   const handleSavePreferences = async () => {
     try {
+      const supermarket_attributes = {
+        is_supermarket_accessibility: accessibility,
+        has_disabled_parking: hasDisabledParking,
+        has_free_parking: hasFreeParking,
+        has_delivery: hasDelivery,
+      };
+
       const response = await fetch(
         "http://localhost:5000/api/update-preferences",
         {
@@ -189,13 +214,11 @@ const MyProfile = () => {
           body: JSON.stringify({
             email: user.email,
             preferences,
+            supermarket_attributes,
             budget,
             budgetAmount,
             supermarketRadius,
-            accessibility,
-            hasDisabledParking,
-            hasFreeParking,
-            hasDelivery,
+            disabledPermit: accessibility,
           }),
         }
       );
@@ -204,8 +227,9 @@ const MyProfile = () => {
         alert("✅ השינויים נשמרו בהצלחה!");
 
         const updatedUser = {
-          ...user, // Preserve existing fields like created_at
+          ...user,
           preferences,
+          supermarket_attributes,
           budget,
           budget_amount: budgetAmount,
           supermarket_radius: supermarketRadius,
@@ -214,7 +238,7 @@ const MyProfile = () => {
 
         localStorage.setItem("user", JSON.stringify(updatedUser));
         setUser(updatedUser);
-        toggleAccordion(0); // Close the accordion after saving
+        toggleAccordion(0);
       } else {
         const result = await response.json();
         alert(result.error || "שגיאה בשמירת השינויים");
@@ -526,7 +550,7 @@ const MyProfile = () => {
                   <div className="list-container">
                     {lists
                       .slice(currentPage * 3, currentPage * 3 + 3)
-                      .map((list, idx) => (
+                      .map((list) => (
                         <div
                           key={list.id}
                           className={`saved-list ${
@@ -536,17 +560,20 @@ const MyProfile = () => {
                         >
                           <div className="list-header">
                             <span>
-                              🗓️{" "}
-                              {new Date(list.created_at).toLocaleDateString(
-                                "he-IL"
-                              )}{" "}
-                              {new Date(list.created_at).toLocaleTimeString(
-                                "he-IL",
-                                {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                }
-                              )}
+                              {(() => {
+                                const created = new Date(
+                                  list.created_at.replace(" ", "T")
+                                );
+                                return (
+                                  <span>
+                                    🗓️ {created.toLocaleDateString("he-IL")}{" "}
+                                    {created.toLocaleTimeString("he-IL", {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })}
+                                  </span>
+                                );
+                              })()}
                             </span>
                             <div className="list-title-row">
                               <strong>
@@ -678,12 +705,67 @@ const MyProfile = () => {
                                   ? `${list.total_price} ₪`
                                   : "מחיר לא זמין"}
                               </p>
-                              <p>
-                                העדפות:{" "}
-                                {Object.keys(
-                                  JSON.parse(list.preferences || "{}")
-                                ).join(", ")}
-                              </p>
+                              <div className="preferences-preview">
+                                <strong>העדפות תזונה:</strong>{" "}
+                                {(() => {
+                                  try {
+                                    const prefs =
+                                      typeof list.dietary_preferences ===
+                                      "string"
+                                        ? JSON.parse(list.dietary_preferences)
+                                        : list.dietary_preferences || {};
+
+                                    const selected = Object.entries(prefs)
+                                      .filter(([_, value]) => value === true)
+                                      .map(([key]) => key.replace(/_/g, " "))
+                                      .join(", ");
+
+                                    return selected || "לא נבחרו העדפות תזונה";
+                                  } catch (e) {
+                                    console.error(
+                                      "⚠️ Failed to parse dietary preferences:",
+                                      e
+                                    );
+                                    return "שגיאה בהצגת העדפות תזונה";
+                                  }
+                                })()}
+                              </div>
+
+                              <div className="preferences-preview">
+                                <strong>העדפות נגישות:</strong>{" "}
+                                {(() => {
+                                  try {
+                                    const attr =
+                                      typeof list.supermarket_attributes ===
+                                      "string"
+                                        ? JSON.parse(
+                                            list.supermarket_attributes
+                                          )
+                                        : list.supermarket_attributes || {};
+
+                                    const labels = {
+                                      is_supermarket_accessibility: "סופר נגיש",
+                                      has_disabled_parking: "חניית נכים",
+                                      has_free_parking: "חניה חינם",
+                                      has_delivery: "אפשרות משלוח",
+                                    };
+
+                                    const selected = Object.entries(attr)
+                                      .filter(([_, value]) => value === true)
+                                      .map(([key]) => labels[key])
+                                      .join(", ");
+
+                                    return selected || "אין העדפות נגישות";
+                                  } catch (e) {
+                                    console.error(
+                                      "⚠️ Failed to parse accessibility preferences:",
+                                      e
+                                    );
+                                    return "שגיאה בהצגת העדפות נגישות";
+                                  }
+                                })()}
+                              </div>
+
                               <div className="list-actions">
                                 <button
                                   className="profile-btn"
@@ -698,9 +780,18 @@ const MyProfile = () => {
                                   className="profile-btn"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setActiveProducts(
-                                      JSON.parse(list.products || "[]")
+                                    const parsedProducts = JSON.parse(
+                                      list.products || "{}"
                                     );
+                                    setActiveProducts(
+                                      Object.entries(parsedProducts).map(
+                                        ([name, values]) => ({
+                                          name,
+                                          ...values,
+                                        })
+                                      )
+                                    );
+
                                     setShowProductsPopup(true);
                                   }}
                                 >

@@ -1,3 +1,4 @@
+import re
 import bcrypt
 from flask import Flask, json, request, jsonify
 from flask_cors import CORS
@@ -6,6 +7,10 @@ import pymysql
 import requests
 import os
 import mysql.connector
+from twilio.rest import Client
+from dotenv import load_dotenv
+load_dotenv()  # ✅ this loads variables from .env into os.environ
+
 
 app = Flask(__name__)
 CORS(app)  # Allow requests from React frontend
@@ -21,6 +26,54 @@ DB_NAME = "quickpick"
 FOODS_DICTIONARY_URL = "https://www.foodsdictionary.co.il/services/c/getSuggestions.php"
 CHP_AUTOCOMPLETE_URL = "https://chp.co.il/autocompletion/product_extended"
 
+
+TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")  # e.g. ACxxxx
+TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")    # actual token
+TWILIO_PHONE_NUMBER = "whatsapp:+14155238886"         # always this in sandbox
+
+
+# Send list to WhatsApp
+@app.route("/api/send-list-sms", methods=["POST"])
+def send_list_sms():
+    try:
+        data = request.json
+        raw_phone = data.get("phone", "").strip()
+
+        # Remove all characters that are not digits
+        raw_phone = re.sub(r"\D", "", raw_phone)  # Keeps only digits (0-9)
+
+        products = data.get("products", {})
+        list_name = data.get("list_name", "רשימת קניות")
+
+        if not raw_phone or not products:
+            return jsonify({"error": "Missing phone or products"}), 400
+
+        if raw_phone.startswith("0"):
+            raw_phone = raw_phone[1:]
+        phone_number = f"whatsapp:+972{raw_phone}"
+        print("Formatted phone:", phone_number)
+
+        # Format the message
+        product_lines = [
+            f"- {name}: {info['quantity']} {info['unit']}"
+            for name, info in products.items()
+        ]
+        message_body = f"📋 {list_name}:\n" + "\n".join(product_lines)
+
+        # Send message via Twilio
+        client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+        message = client.messages.create(
+            body=message_body,
+            from_=TWILIO_PHONE_NUMBER,
+            to=phone_number,
+        )
+
+        return jsonify({"message": "WhatsApp message sent!", "sid": message.sid}), 200
+
+    except Exception as e:
+        print("❌ SMS error:", e)
+        return jsonify({"error": f"Failed to send SMS: {str(e)}"}), 500
+
 @app.route("/chat", methods=["POST"])
 def chat():
     data = request.get_json()
@@ -34,7 +87,6 @@ def chat():
 
     # ✅ Return the generated text
     return jsonify({"response": bot_output[0]['generated_text']})
-
 
 # ✅ Fetch suggestions from FoodsDictionary
 def fetch_suggestions_fd(search_term, page=1):
@@ -119,6 +171,34 @@ def get_db_connection():
         print(f"Database connection error: {err}")
         return None
 
+# Helper function for getting user data
+def get_full_user_data(user_id, cursor):
+    cursor.execute("""
+        SELECT id, first_name, email, phone, dietary_preferences, supermarket_attributes,
+               supermarket_radius, disabled_permit, created_at, budget, budget_amount 
+        FROM users 
+        WHERE id = %s
+    """, (user_id,))
+
+    user = cursor.fetchone()
+
+    if not user:
+        return None
+    return {
+        "id": user["id"],
+        "first_name": user["first_name"],
+        "email": user["email"],
+        "phone": user["phone"],
+        "preferences": user["dietary_preferences"],
+        "supermarket_attributes": user["supermarket_attributes"],
+        "supermarket_radius": user["supermarket_radius"],
+        "disabled_permit": user["disabled_permit"],
+        "created_at": user["created_at"].isoformat(),
+        "budget": user["budget"],
+        "budget_amount": user["budget_amount"]
+    }
+
+# Register a new User
 @app.route("/api/register", methods=["POST"])
 def register_user():
     try:
@@ -135,9 +215,12 @@ def register_user():
         gender = data.get("gender")
         city = data.get("city")
         disabled_permit = data.get("disabledPermit", False)
-        preferences = json.dumps(data.get("preferences", {}))
+
+        dietary_preferences = json.dumps(data.get("preferences", {}))
+        supermarket_attributes = json.dumps(data.get("supermarket_attributes", {}))
+
         budget = data.get("budget")
-        budget_amount = int(data.get("budgetAmount") or 0)
+        budget_amount = float(data.get("budgetAmount") or 0)
         supermarket_radius = int(data.get("supermarket_radius") or 5)
         newsletter = data.get("newsletter", False)
         marketing_updates = data.get("marketingUpdates", False)
@@ -148,24 +231,32 @@ def register_user():
         hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
         conn = get_db_connection()
-        cursor = conn.cursor()
+        cursor = conn.cursor(dictionary=True)
 
         sql = """INSERT INTO users 
-                (first_name, last_name, email, password_hash, phone, birth_date, gender,
-                 city, disabled_permit, preferences, budget, budget_amount, supermarket_radius,
-                 newsletter, marketing_updates, subscription_status)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Active')"""
+            (first_name, last_name, email, password_hash, phone, birth_date, gender,
+             city, disabled_permit, dietary_preferences, supermarket_attributes,
+             budget, budget_amount, supermarket_radius,
+             newsletter, marketing_updates, subscription_status)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Active')"""
         
         values = (
             first_name, last_name, email, hashed_password, phone, birth_date, gender, city,
-            disabled_permit, preferences, budget, budget_amount, supermarket_radius,
+            disabled_permit, dietary_preferences, supermarket_attributes,
+            budget, budget_amount, supermarket_radius,
             newsletter, marketing_updates
         )
 
         cursor.execute(sql, values)
         conn.commit()
 
-        return jsonify({"message": "User registered successfully!"}), 201
+        new_user_id = cursor.lastrowid
+        full_user = get_full_user_data(new_user_id, cursor)
+
+        return jsonify({
+            "message": "User registered successfully!",
+            "user": full_user
+        }), 201    
 
     except pymysql.Error as e:
         print("❌ Database Error:", e)
@@ -220,29 +311,13 @@ def login_user():
         if not bcrypt.checkpw(password.encode('utf-8'), user["password_hash"].encode('utf-8')):
             return jsonify({"error": "סיסמא לא נכונה ❌"}), 401
 
-        # Fetch and return user details
-        cursor.execute("""
-            SELECT first_name, email, preferences, supermarket_radius, 
-                   disabled_permit, created_at, budget, budget_amount 
-            FROM users 
-            WHERE id = %s
-        """, (user["id"],))
-        the_user = cursor.fetchone()
+        # Fetch and return full user details
+        full_user = get_full_user_data(user["id"], cursor)
 
         return jsonify({
-            "message": "משתמש התחבר בהצלחה ✅",
-            "user": {
-                "id": user["id"],
-                "first_name": the_user["first_name"],
-                "email": the_user["email"],
-                "preferences": the_user["preferences"],
-                "supermarket_radius": the_user["supermarket_radius"],
-                "disabled_permit": the_user["disabled_permit"],
-                "created_at": the_user["created_at"],
-                "budget": the_user["budget"],
-                "budget_amount": the_user["budget_amount"]
-            }
-        }), 200
+            "message": "User registered successfully!",
+            "user": full_user
+        }), 201
 
     except Exception as e:
         print("❌ Unexpected Error:", e)
@@ -252,7 +327,6 @@ def login_user():
         if conn and cursor:
             cursor.close()
             conn.close()
-
 
 # change password
 @app.route("/api/change-password", methods=["POST"])
@@ -275,8 +349,6 @@ def change_password():
     if not user:
         return jsonify({"error": "User not found"}), 404
     
-    print("User from DB:", user)
-
     if not bcrypt.checkpw(current_password.encode("utf-8"), user["password_hash"].encode("utf-8")):
         return jsonify({"error": "Incorrect current password"}), 401
 
@@ -288,6 +360,62 @@ def change_password():
     conn.close()
 
     return jsonify({"message": "Password updated successfully"}), 200
+
+# Save new User List
+@app.route("/api/save-list", methods=["POST"])
+def save_list():
+    try:
+        data = request.get_json()
+        print("Incoming list payload:", data)
+
+        required = ["user_id", "list_name", "address", "supermarket_radius", "preferences", "products"]
+        for field in required:
+            if field not in data:
+                return jsonify({"error": f"Missing field: {field}"}), 400
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        query = """
+        INSERT INTO user_lists (
+            user_id, list_name, address, supermarket_radius,
+            supermarket_attributes, dietary_preferences, products,
+            total_price, is_favorite
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """
+
+        cursor.execute(
+            query,
+            (
+                data["user_id"],
+                data["list_name"],
+                data["address"],
+                data["supermarket_radius"],
+                json.dumps(data.get("supermarket_attributes", {})),
+                json.dumps(data.get("preferences", {})),
+                json.dumps(data["products"]),
+                data.get("total_price"),
+                data.get("is_favorite", 0),
+            ),
+        )
+        conn.commit()
+
+        new_id = cursor.lastrowid
+
+        # ✅ Fetch the saved list with created_at
+        cursor.execute("SELECT * FROM user_lists WHERE id = %s", (new_id,))
+        saved_list = cursor.fetchone()
+        columns = [col[0] for col in cursor.description]
+        saved_list_dict = dict(zip(columns, saved_list))
+
+        cursor.close()
+        conn.close()
+
+        return jsonify(saved_list_dict), 200
+
+    except Exception as e:
+        print("🔥 Error while saving list:", e)
+        return jsonify({"error": "Failed to save list"}), 500
 
 # Get user lists
 @app.route("/api/user-lists", methods=["GET"])
@@ -306,7 +434,7 @@ def get_user_lists():
 
     # Convert fields for frontend
     for l in lists:
-        l["created_at"] = l["created_at"].strftime("%Y-%m-%d %H:%M:%S")
+        l["created_at"] = l["created_at"].isoformat()
         if "total_price" in l and l["total_price"] is not None:
             l["total_price"] = float(l["total_price"])
 
@@ -382,18 +510,20 @@ def update_preferences():
 
         cursor.execute("""
             UPDATE users
-            SET preferences = %s,
-            budget = %s,
-            budget_amount = %s,
-            supermarket_radius = %s,
-            disabled_permit = %s
+            SET dietary_preferences = %s,
+                supermarket_attributes = %s,
+                budget = %s,
+                budget_amount = %s,
+                supermarket_radius = %s,
+                disabled_permit = %s
             WHERE email = %s
         """, (
             json.dumps(data.get("preferences", {})),
+            json.dumps(data.get("supermarket_attributes", {})),
             data.get("budget", "weekly"),
-            data.get("budgetAmount", 0),
-            data.get("supermarketRadius", 5),
-            data.get("accessibility", 0),
+            float(data.get("budgetAmount", 0)),
+            int(data.get("supermarketRadius", 5)),
+            bool(data.get("disabledPermit", False)),
             email
         ))
 
@@ -403,6 +533,7 @@ def update_preferences():
     except Exception as e:
         print("Error updating preferences:", e)
         return jsonify({"error": "Failed to update preferences"}), 500
+
     finally:
         cursor.close()
         conn.close()
@@ -438,7 +569,6 @@ def close_account():
             cursor.close()
         if conn:
             conn.close()
-
 
 # Get All Users (For Testing)
 @app.route('/api/users', methods=['GET'])
