@@ -15,7 +15,6 @@ const ShoppingCartSidebar = ({
 }) => {
   const { address } = useContext(LocationContext); // Get context value
   const navigate = useNavigate();
-  console.log("currentList", currentList);
 
   const { user } = useContext(UserContext);
   const { userLists, setUserLists } = useContext(ListsContext);
@@ -78,6 +77,8 @@ const ShoppingCartSidebar = ({
       user_id: user.id,
       list_name: listName,
       address: currentList?.address || address,
+      latitude: currentList?.latitude || user.latitude || null,
+      longitude: currentList?.longitude || user.longitude || null,
       supermarket_radius:
         currentList?.supermarket_radius || user.supermarket_radius || 5,
       preferences: prefs,

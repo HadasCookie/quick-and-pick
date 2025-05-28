@@ -9,7 +9,7 @@ import os
 import mysql.connector
 from twilio.rest import Client
 from dotenv import load_dotenv
-load_dotenv()  # ✅ this loads variables from .env into os.environ
+load_dotenv()  # this loads variables from .env into os.environ
 
 
 app = Flask(__name__)
@@ -17,7 +17,7 @@ CORS(app)  # Allow requests from React frontend
 chatbot = pipeline('text2text-generation', model='google/flan-t5-small')
 
 # Database Configuration
-DB_HOST = "104.199.102.228"
+DB_HOST = "34.78.145.126"
 DB_USER = "root"
 DB_PASSWORD = os.getenv('DB_PASSWORD')
 DB_NAME = "quickpick"
@@ -154,6 +154,45 @@ def get_suggestions():
         return jsonify({"error": "Invalid source"}), 400
 
     return jsonify(suggestions)
+
+### Finding The Best Supermarket
+
+# Find Nearby Stores Within Radius
+@app.route("/api/find-nearby-stores/<int:list_id>", methods=["GET"])
+def find_nearby_stores(list_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT latitude, longitude, supermarket_radius FROM user_lists WHERE id = %s", (list_id,))
+    row = cursor.fetchone()
+
+    if not row:
+        return jsonify({"error": "List not found"}), 404
+
+    user_lat, user_lng, radius = row
+
+    cursor.execute("""
+        SELECT *, 
+          (6371 * acos(
+            cos(radians(%s)) *
+            cos(radians(latitude)) *
+            cos(radians(longitude) - radians(%s)) +
+            sin(radians(%s)) * sin(radians(latitude))
+          )) AS distance
+        FROM stores
+        HAVING distance <= %s
+        ORDER BY distance ASC
+    """, (user_lat, user_lng, user_lat, radius))
+
+    stores = cursor.fetchall()
+    columns = [col[0] for col in cursor.description]
+    result = [dict(zip(columns, s)) for s in stores]
+
+    cursor.close()
+    conn.close()
+
+    return jsonify(result)
+
 
 ### DB Logic
 # Establish Database Connection
@@ -366,7 +405,10 @@ def change_password():
 def save_list():
     try:
         data = request.get_json()
-        print("Incoming list payload:", data)
+        
+        # Extract latitude and longitude
+        latitude = data.get("latitude")
+        longitude = data.get("longitude")
 
         required = ["user_id", "list_name", "address", "supermarket_radius", "preferences", "products"]
         for field in required:
@@ -378,28 +420,27 @@ def save_list():
 
         query = """
         INSERT INTO user_lists (
-            user_id, list_name, address, supermarket_radius,
-            supermarket_attributes, dietary_preferences, products,
-            total_price, is_favorite
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        user_id, list_name, address, latitude, longitude,
+        supermarket_radius, supermarket_attributes,
+        dietary_preferences, products, total_price, is_favorite
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
 
-        cursor.execute(
-            query,
-            (
-                data["user_id"],
-                data["list_name"],
-                data["address"],
-                data["supermarket_radius"],
-                json.dumps(data.get("supermarket_attributes", {})),
-                json.dumps(data.get("preferences", {})),
-                json.dumps(data["products"]),
-                data.get("total_price"),
-                data.get("is_favorite", 0),
-            ),
-        )
+        cursor.execute(query, (
+            data["user_id"],
+            data["list_name"],
+            data["address"],
+            latitude,
+            longitude,
+            data["supermarket_radius"],
+            json.dumps(data.get("supermarket_attributes", {})),
+            json.dumps(data.get("preferences", {})),
+            json.dumps(data["products"]),
+            data.get("total_price"),
+            data.get("is_favorite", 0),
+        ))
         conn.commit()
-
+        print(data)
         new_id = cursor.lastrowid
 
         # ✅ Fetch the saved list with created_at
@@ -538,7 +579,7 @@ def update_preferences():
         cursor.close()
         conn.close()
        
-# ✅ Close user account
+# Close user account
 @app.route("/api/close-account", methods=["POST"])
 def close_account():
     data = request.get_json()
@@ -569,6 +610,18 @@ def close_account():
             cursor.close()
         if conn:
             conn.close()
+
+# Get all products
+@app.route("/api/products", methods=["GET"])
+def get_products():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM products")
+    products = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return jsonify(products)
+
 
 # Get All Users (For Testing)
 @app.route('/api/users', methods=['GET'])

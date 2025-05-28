@@ -33,6 +33,8 @@ export const CartProvider = ({ children }) => {
 
   const clearCart = () => setCartItems([]);
 
+  // const searchBestSupermarket
+
   // Optional: utility function if you want to expose it here
   const generateCartProducts = () => {
     const result = {};

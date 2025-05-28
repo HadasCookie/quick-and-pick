@@ -11,7 +11,15 @@ const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
 const libraries = ["places"];
 
 const Address = () => {
-  const { address, setAddress } = useContext(LocationContext);
+  const {
+    address,
+    setAddress,
+    latitude,
+    setLatitude,
+    longitude,
+    setLongitude,
+  } = useContext(LocationContext);
+
   const { user } = useContext(UserContext);
   const { currentList, setCurrentList } = useContext(ListsContext);
   const [autocomplete, setAutocomplete] = useState(null);
@@ -123,6 +131,10 @@ const Address = () => {
           return;
         }
 
+        const coords = place.geometry?.location;
+        setLatitude(coords?.lat());
+        setLongitude(coords?.lng());
+
         setAddress(formattedAddress);
         setIsLocationFetched(true);
       }
@@ -138,11 +150,15 @@ const Address = () => {
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
+        setLatitude(latitude);
+        setLongitude(longitude);
+
         try {
           const res = await fetch(
             `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${GOOGLE_MAPS_API_KEY}&language=he`
           );
           const data = await res.json();
+          console.log("Geocode response:", data);
           if (data.results?.length > 0) {
             const result = data.results[0];
             const formatted = result.formatted_address
@@ -191,27 +207,17 @@ const Address = () => {
         has_free_parking: hasFreeParking,
         has_delivery: hasDelivery,
       };
+      console.log("latitude:", latitude);
+      console.log("longitude:", longitude);
 
       setCurrentList({
         address,
+        latitude,
+        longitude,
         supermarket_radius: radius,
         supermarket_attributes,
         preferences,
       });
-
-      // localStorage.setItem(
-      //   "user",
-      //   JSON.stringify({
-      //     ...user,
-      //     preferences,
-      //     supermarket_attributes: {
-      //       is_supermarket_accessibility: accessibility,
-      //       has_disabled_parking: hasDisabledParking,
-      //       has_free_parking: hasFreeParking,
-      //       has_delivery: hasDelivery,
-      //     },
-      //   })
-      // );
 
       navigate("/FindCheapest");
     }

@@ -149,7 +149,8 @@ const FindCheapest = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedSubCategory, setSelectedSubCategory] = useState(null);
-  const [products, setProducts] = useState(fakeProducts);
+  // const [products, setProducts] = useState(fakeProducts);
+  const [products, setProducts] = useState([]); // Start with empty array
   const [selectedProductId, setSelectedProductId] = useState(null);
   const { user } = useContext(UserContext);
   const [cartItems, setCartItems] = useState(() => {
@@ -179,6 +180,29 @@ const FindCheapest = () => {
       );
     }
   }, [cartItems, user]);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/api/products");
+        const data = await res.json();
+        const formatted = data.map((p) => ({
+          id: p.item_code,
+          name: p.item_name,
+          category: p.category,
+          subcategory: p.subcategory,
+          quantity: 0,
+          unit: p.unit_qty,
+          image: p.image_url || "/images/veggies/red-apple.jpg", // fallback if no image
+        }));
+        setProducts(formatted);
+      } catch (err) {
+        console.error("❌ Failed to load products:", err);
+      }
+    };
+
+    fetchProducts();
+  }, []);
 
   const handlePrev = () => {
     setCurrentIndex((prevIndex) =>
