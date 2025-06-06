@@ -3,7 +3,10 @@ import React, { createContext, useState } from "react";
 export const LocationContext = createContext();
 
 export const LocationProvider = ({ children }) => {
-  const [address, setAddress] = useState("");
+  const [address, setAddress] = useState(
+    localStorage.getItem("user_address") || ""
+  );
+
   const [latitude, setLatitude] = useState(null);
   const [longitude, setLongitude] = useState(null);
 

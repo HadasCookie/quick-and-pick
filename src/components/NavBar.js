@@ -43,26 +43,27 @@ function NavBar() {
           </div>
           <ul className={click ? "nav-menu active" : "nav-menu"}>
             <li className="nav-item">
-              <Link to="/" className="nav-links" onClick={closeMobileMenu}>
-                ראשי
-              </Link>
-            </li>
-            <li className="nav-item">
-              <Link
-                to="/CreateList"
-                className="nav-links"
-                onClick={closeMobileMenu}
-              >
-                צור רשימה
-              </Link>
-            </li>
-            <li className="nav-item">
               <Link
                 to="/input-recipe"
                 className="nav-links"
                 onClick={closeMobileMenu}
               >
                 הדבק מתכון
+              </Link>
+            </li>
+
+            <li className="nav-item">
+              <Link
+                to="/Address"
+                className="nav-links"
+                onClick={closeMobileMenu}
+              >
+                מצא סופר
+              </Link>
+            </li>
+            <li className="nav-item">
+              <Link to="/" className="nav-links" onClick={closeMobileMenu}>
+                ראשי
               </Link>
             </li>
             <li className="nav-item">

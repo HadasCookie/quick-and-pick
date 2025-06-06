@@ -1,11 +1,15 @@
-import React, { useState, useEffect, useContext } from "react";
-import { UserContext } from "../../context/UserContext";
+import React, { useState, useEffect, useContext, use } from "react";
 import "./FindCheapest.css";
 import ShoppingCartSidebar from "../ShoppingCartSidebar";
 import Footer from "../Footer";
 import { ListsContext } from "../../context/ListsContext";
+import { UserContext } from "../../context/UserContext";
 
-const images = ["/images/carousel1.jpg", "/images/carousel2.jpg"];
+const images = [
+  "/images/shufersalSale.jpeg",
+  "/images/victory1.jpg",
+  "/images/tivTaamSale.jpg",
+];
 
 // Fake Products Data
 const fakeProducts = [
@@ -150,7 +154,7 @@ const FindCheapest = () => {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedSubCategory, setSelectedSubCategory] = useState(null);
   // const [products, setProducts] = useState(fakeProducts);
-  const [products, setProducts] = useState([]); // Start with empty array
+  const [products, setProducts] = useState([]);
   const [selectedProductId, setSelectedProductId] = useState(null);
   const { user } = useContext(UserContext);
   const [cartItems, setCartItems] = useState(() => {
@@ -162,7 +166,55 @@ const FindCheapest = () => {
   });
 
   const [cartMessage, setCartMessage] = useState("");
-  const { currentList } = useContext(ListsContext);
+  const { currentList, setCurrentList } = useContext(ListsContext);
+  const [showSavedListOnly] = useState(true);
+
+  const [productSearch, setProductSearch] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  // State to track search input and selected product
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchSuggestions, setSearchSuggestions] = useState([]);
+  const [selectedSearchProduct, setSelectedSearchProduct] = useState(null);
+
+  // Update search term with debounce
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (searchTerm.length >= 2) {
+        const suggestions = products
+          .map((p) => p.name)
+          .filter((name) =>
+            name.toLowerCase().startsWith(searchTerm.toLowerCase())
+          );
+        setSearchSuggestions(suggestions);
+      } else {
+        setSearchSuggestions([]);
+      }
+    }, 300);
+
+    return () => clearTimeout(timeout);
+  }, [searchTerm, products]);
+
+  // Handle search selection
+  const handleSearchSelect = (productName) => {
+    const product = products.find((p) => p.name === productName);
+    if (product) {
+      setSelectedSearchProduct(product);
+    }
+    setSearchTerm("");
+    setSearchSuggestions([]);
+  };
+
+  useEffect(() => {
+    if (!productSearch) {
+      setSearchResults([]);
+    } else {
+      const searchTerm = productSearch.toLowerCase();
+      const matches = products.filter((p) =>
+        p.name.toLowerCase().includes(searchTerm)
+      );
+      setSearchResults(matches);
+    }
+  }, [productSearch, products]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -182,6 +234,35 @@ const FindCheapest = () => {
   }, [cartItems, user]);
 
   useEffect(() => {
+    if (!user?.id || currentList) return;
+
+    const fetchLastList = async () => {
+      try {
+        const responseLastList = await fetch(
+          `http://localhost:5000/api/user-last-list?user_id=${user?.id}`
+        );
+        const lastList = await responseLastList.json();
+
+        if (lastList && lastList.products) {
+          setCurrentList({
+            ...lastList,
+            products:
+              typeof lastList.products === "string"
+                ? JSON.parse(lastList.products)
+                : lastList.products,
+          });
+        } else {
+          setCurrentList({ products: [] });
+        }
+      } catch (error) {
+        console.error("Error fetching last list:", error);
+      }
+    };
+
+    fetchLastList();
+  }, [user, setCurrentList, currentList]);
+
+  useEffect(() => {
     const fetchProducts = async () => {
       try {
         const res = await fetch("http://localhost:5000/api/products");
@@ -193,7 +274,7 @@ const FindCheapest = () => {
           subcategory: p.subcategory,
           quantity: 0,
           unit: p.unit_qty,
-          image: p.image_url || "/images/veggies/red-apple.jpg", // fallback if no image
+          image: p.image_url || "/images/veggies/red-apple.jpg",
         }));
         setProducts(formatted);
       } catch (err) {
@@ -215,6 +296,9 @@ const FindCheapest = () => {
   };
 
   const handleCategoryClick = (category) => {
+    setSelectedSearchProduct(null); // Clear search result
+    setSearchTerm(""); // Clear search input
+    setSearchSuggestions([]);
     if (category.hasSubcategories) {
       setSelectedCategory(category.name);
       setSelectedSubCategory(null);
@@ -225,45 +309,60 @@ const FindCheapest = () => {
   };
 
   const handleSubCategoryClick = (subcategory) => {
+    setSelectedSearchProduct(null); // Clear search result
+    setSearchTerm(""); // Clear search input
+    setSearchSuggestions([]);
     setSelectedSubCategory(subcategory);
   };
 
   const handleProductClick = (productId) => {
-    if (selectedProductId === productId) return; // Prevent re-clicking from resetting
-
     setSelectedProductId(productId);
+
     setProducts((prevProducts) =>
-      prevProducts.map(
-        (product) =>
-          product.id === productId
-            ? {
-                ...product,
-                quantity: product.category === "פירות וירקות" ? 0.5 : 1,
-              } // Auto set to 0.5 kg on first click
-            : { ...product, quantity: 0 } // Reset others to 0
+      prevProducts.map((product) =>
+        product.id === productId && product.quantity === 0
+          ? {
+              ...product,
+              quantity: product.category === "פירות וירקות" ? 0.5 : 1,
+            }
+          : product
       )
     );
+
+    // For search-selected product
+    if (
+      selectedSearchProduct &&
+      selectedSearchProduct.id === productId &&
+      selectedSearchProduct.quantity === 0
+    ) {
+      setSelectedSearchProduct({
+        ...selectedSearchProduct,
+        quantity: selectedSearchProduct.category === "פירות וירקות" ? 0.5 : 1,
+      });
+    }
   };
 
   const updateQuantity = (productId, newQuantity) => {
-    setProducts(
-      products.map((product) => {
+    setProducts((products) => {
+      const updatedProducts = products.map((product) => {
         if (product.id === productId) {
-          // Check if the product belongs to "פירות וירקות"
           const isFruitOrVeggie = product.category === "פירות וירקות";
-
-          // Set minimum quantity
           const minQuantity = isFruitOrVeggie ? 0.5 : 1;
-
-          // Prevent going below the minimum allowed quantity
           const updatedQuantity =
             newQuantity < minQuantity ? minQuantity : newQuantity;
-
           return { ...product, quantity: updatedQuantity };
         }
         return product;
-      })
-    );
+      });
+
+      // Update selectedSearchProduct if relevant
+      if (selectedSearchProduct && selectedSearchProduct.id === productId) {
+        const updatedProduct = updatedProducts.find((p) => p.id === productId);
+        setSelectedSearchProduct({ ...updatedProduct });
+      }
+
+      return updatedProducts;
+    });
   };
 
   const clearCart = () => {
@@ -309,31 +408,33 @@ const FindCheapest = () => {
   };
 
   // Filter products based on selected category and subcategory
-  const filteredProducts = products.filter((product) => {
-    // Show all products when "הכל" is selected
-    if (!selectedCategory || selectedCategory === "הכל") {
+  let filteredProducts = [];
+
+  // CASE 1: Default (no category selected): show only last list products
+  if (
+    (!selectedCategory || selectedCategory === "הכל") &&
+    currentList?.products &&
+    Object.keys(currentList.products).length > 0
+  ) {
+    filteredProducts = products.filter((product) =>
+      Object.keys(currentList.products).includes(product.name)
+    );
+  }
+  // CASE 2: Category selected: show ALL products for that category (not only from last list)
+  else if (selectedCategory) {
+    filteredProducts = products.filter((product) => {
+      if (selectedCategory && product.category !== selectedCategory)
+        return false;
+      if (selectedSubCategory && product.subcategory !== selectedSubCategory)
+        return false;
       return true;
-    }
+    });
+  } else {
+    // fallback: show nothing or everything as you like (usually nothing)
+    filteredProducts = [];
+  }
 
-    // Handle "פירות וירקות" separately since it has subcategories
-    if (selectedCategory === "פירות וירקות") {
-      if (!selectedSubCategory || selectedSubCategory === "הכל") {
-        return product.category === "פירות וירקות";
-      }
-      return product.subcategory === selectedSubCategory;
-    }
-
-    // Handle Dairy & Eggs (מוצרי חלב וביצים) properly
-    if (selectedCategory === "מוצרי חלב וביצים") {
-      if (!selectedSubCategory || selectedSubCategory === "הכל") {
-        return product.category === "מוצרי חלב וביצים";
-      }
-      return product.subcategory === selectedSubCategory;
-    }
-
-    // General case for categories that don't have subcategories
-    return product.category === selectedCategory;
-  });
+  const displayedItems = productSearch ? searchResults : filteredProducts;
 
   return (
     <>
@@ -883,50 +984,78 @@ const FindCheapest = () => {
           )}
         </div>
 
+        {/* Search Bar */}
+        <div className="product-search-box">
+          <input
+            type="text"
+            className="search-input"
+            value={searchTerm}
+            placeholder="...חפש מוצר לפי שם"
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          {searchSuggestions.length > 0 && (
+            <ul className="search-suggestions">
+              {searchSuggestions.map((suggestion, index) => (
+                <li key={index} onClick={() => handleSearchSelect(suggestion)}>
+                  {suggestion}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
         {/* Products Section */}
         <div className="products-section">
-          {filteredProducts.map((product) => (
+          {selectedSearchProduct ? (
             <div
-              key={product.id}
               className="product-card"
-              onClick={() => handleProductClick(product.id)}
+              key={selectedSearchProduct.id}
+              onClick={() => handleProductClick(selectedSearchProduct.id)}
             >
               <img
-                src={product.image}
-                alt={product.name}
+                src={selectedSearchProduct.image}
+                alt={selectedSearchProduct.name}
                 className="product-image"
               />
               <div className="product-info">
-                <h3>{product.name}</h3>
-                {product.quantity > 0 && (
+                <h3>{selectedSearchProduct.name}</h3>
+                {selectedSearchProduct.quantity > 0 && (
                   <div className="quantity-container">
                     <button
                       className="quantity-btn"
                       onClick={() =>
                         updateQuantity(
-                          product.id,
-                          product.quantity -
-                            (product.category === "פירות וירקות" ? 0.5 : 1)
+                          selectedSearchProduct.id,
+                          selectedSearchProduct.quantity -
+                            (selectedSearchProduct.category === "פירות וירקות"
+                              ? 0.5
+                              : 1)
                         )
                       }
                       disabled={
-                        product.quantity <=
-                        (product.category === "פירות וירקות" ? 0.5 : 1)
+                        selectedSearchProduct.quantity <=
+                        (selectedSearchProduct.category === "פירות וירקות"
+                          ? 0.5
+                          : 1)
                       }
                     >
                       -
                     </button>
                     <span>
-                      {product.quantity}{" "}
-                      {product.category === "פירות וירקות" ? "ק״ג" : "יחידות"}
+                      {selectedSearchProduct.quantity}{" "}
+                      {selectedSearchProduct.category === "פירות וירקות"
+                        ? "ק״ג"
+                        : "יחידות"}
                     </span>
                     <button
                       className="quantity-btn"
                       onClick={() =>
                         updateQuantity(
-                          product.id,
-                          product.quantity +
-                            (product.category === "פירות וירקות" ? 0.5 : 1)
+                          selectedSearchProduct.id,
+                          selectedSearchProduct.quantity +
+                            (selectedSearchProduct.category === "פירות וירקות"
+                              ? 0.5
+                              : 1)
                         )
                       }
                     >
@@ -934,17 +1063,79 @@ const FindCheapest = () => {
                     </button>
                   </div>
                 )}
-                {(product.quantity >= 0.5 || product.quantity >= 1) && (
+                {(selectedSearchProduct.quantity >= 0.5 ||
+                  selectedSearchProduct.quantity >= 1) && (
                   <button
                     className="add-to-cart"
-                    onClick={() => addToCart(product)}
+                    onClick={() => addToCart(selectedSearchProduct)}
                   >
                     הוסף לעגלה
                   </button>
                 )}
               </div>
             </div>
-          ))}
+          ) : (
+            displayedItems.map((product) => (
+              <div
+                key={product.id}
+                className="product-card"
+                onClick={() => handleProductClick(product.id)}
+              >
+                <img
+                  src={product.image}
+                  alt={product.name}
+                  className="product-image"
+                />
+                <div className="product-info">
+                  <h3>{product.name}</h3>
+                  {product.quantity > 0 && (
+                    <div className="quantity-container">
+                      <button
+                        className="quantity-btn"
+                        onClick={() =>
+                          updateQuantity(
+                            product.id,
+                            product.quantity -
+                              (product.category === "פירות וירקות" ? 0.5 : 1)
+                          )
+                        }
+                        disabled={
+                          product.quantity <=
+                          (product.category === "פירות וירקות" ? 0.5 : 1)
+                        }
+                      >
+                        -
+                      </button>
+                      <span>
+                        {product.quantity}{" "}
+                        {product.category === "פירות וירקות" ? "ק״ג" : "יחידות"}
+                      </span>
+                      <button
+                        className="quantity-btn"
+                        onClick={() =>
+                          updateQuantity(
+                            product.id,
+                            product.quantity +
+                              (product.category === "פירות וירקות" ? 0.5 : 1)
+                          )
+                        }
+                      >
+                        +
+                      </button>
+                    </div>
+                  )}
+                  {(product.quantity >= 0.5 || product.quantity >= 1) && (
+                    <button
+                      className="add-to-cart"
+                      onClick={() => addToCart(product)}
+                    >
+                      הוסף לעגלה
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
           {cartMessage && (
             <div className="cart-notification">{cartMessage}</div>
           )}

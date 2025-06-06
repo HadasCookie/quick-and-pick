@@ -69,6 +69,7 @@ const MyProfile = () => {
       setLists(userLists);
       setCurrentPage(0); // Optional: reset to first page when switching tabs
     }
+    console.log("User Lists:", userLists);
   }, [activeTab, userLists]);
 
   useEffect(() => {}, [userLists]);
@@ -181,7 +182,7 @@ const MyProfile = () => {
           );
           setHasDisabledParking(parsedAttributes.has_disabled_parking || false);
           setHasFreeParking(parsedAttributes.has_free_parking || false);
-          setHasDelivery(parsedAttributes.has_delivery || false);
+          setHasDelivery(parsedAttributes.delivery_available || false);
         } catch (error) {
           console.error("Failed to parse supermarket_attributes:", error);
           setAccessibility(false);
@@ -203,7 +204,7 @@ const MyProfile = () => {
         is_supermarket_accessibility: accessibility,
         has_disabled_parking: hasDisabledParking,
         has_free_parking: hasFreeParking,
-        has_delivery: hasDelivery,
+        delivery_available: hasDelivery,
       };
 
       const response = await fetch(
@@ -248,6 +249,14 @@ const MyProfile = () => {
       alert("שגיאה בשרת. נסה שוב מאוחר יותר.");
     }
   };
+
+  // Helper function
+  async function fetchProductsInfo(itemCodes) {
+    const response = await fetch(
+      `http://localhost:5000/api/products?codes=${itemCodes.join(",")}`
+    );
+    return response.json(); // should return an array of {item_code, item_name, unit_qty}
+  }
 
   return (
     <>
@@ -561,16 +570,29 @@ const MyProfile = () => {
                           <div className="list-header">
                             <span>
                               {(() => {
-                                const created = new Date(
-                                  list.created_at.replace(" ", "T")
-                                );
+                                const created = new Date(list.created_at + "Z"); // This forces UTC
+                                const optionsDate = {
+                                  timeZone: "Asia/Jerusalem",
+                                  day: "2-digit",
+                                  month: "2-digit",
+                                  year: "numeric",
+                                };
+                                const optionsTime = {
+                                  timeZone: "Asia/Jerusalem",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                };
                                 return (
                                   <span>
-                                    🗓️ {created.toLocaleDateString("he-IL")}{" "}
-                                    {created.toLocaleTimeString("he-IL", {
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                    })}
+                                    🗓️{" "}
+                                    {created.toLocaleDateString(
+                                      "he-IL",
+                                      optionsDate
+                                    )}{" "}
+                                    {created.toLocaleTimeString(
+                                      "he-IL",
+                                      optionsTime
+                                    )}
                                   </span>
                                 );
                               })()}
@@ -744,10 +766,10 @@ const MyProfile = () => {
                                         : list.supermarket_attributes || {};
 
                                     const labels = {
-                                      is_supermarket_accessibility: "סופר נגיש",
-                                      has_disabled_parking: "חניית נכים",
-                                      has_free_parking: "חניה חינם",
-                                      has_delivery: "אפשרות משלוח",
+                                      is_supermarket_accessibility: "♿ נגישות",
+                                      has_disabled_parking: "🅿️ חניית נכים",
+                                      has_free_parking: "🚗 חניה חינם",
+                                      delivery_available: "🚚 משלוחים",
                                     };
 
                                     const selected = Object.entries(attr)
@@ -769,25 +791,34 @@ const MyProfile = () => {
                               <div className="list-actions">
                                 <button
                                   className="profile-btn"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleReSearch(list);
-                                  }}
-                                >
-                                  🔁 מצא שוב סופר
-                                </button>
-                                <button
-                                  className="profile-btn"
-                                  onClick={(e) => {
+                                  onClick={async (e) => {
                                     e.stopPropagation();
                                     const parsedProducts = JSON.parse(
                                       list.products || "{}"
                                     );
+                                    const itemCodes =
+                                      Object.keys(parsedProducts);
+
+                                    // Fetch product info from server
+                                    const codeInfo = await fetchProductsInfo(
+                                      itemCodes
+                                    );
+
+                                    // Map each product to its metadata
+                                    const codeToInfo = {};
+                                    codeInfo.forEach((p) => {
+                                      codeToInfo[p.item_code] = p;
+                                    });
+
                                     setActiveProducts(
                                       Object.entries(parsedProducts).map(
-                                        ([name, values]) => ({
-                                          name,
-                                          ...values,
+                                        ([code, values]) => ({
+                                          name:
+                                            codeToInfo[code]?.item_name || code, // fallback to code if not found
+                                          unit:
+                                            codeToInfo[code]?.unit_qty ||
+                                            values.unit,
+                                          quantity: values.quantity,
                                         })
                                       )
                                     );

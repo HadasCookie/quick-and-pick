@@ -1,0 +1,271 @@
+.results-container {
+  max-width: 750px;
+  margin: 2rem auto;
+  padding: 3rem;
+  background: #f6f6f6;
+  border-radius: 10px;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
+}
+
+.results-container h2 {
+  text-align: center;
+  color: #562c72;
+  margin-bottom: 1.8rem;
+  font-size: 30px;
+}
+
+.store-card {
+  display: grid;
+  background: white;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border-left: 6px solid #ccc;
+  border-radius: 8px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.store-card:hover {
+  transform: scale(1.02);
+}
+
+.store-card.active {
+  transform: scale(1.03);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+}
+
+.top-store {
+  border-left: 6px solid #3a1e4d;
+  background: #f6e5fa;
+}
+
+.store-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+  font-weight: bold;
+}
+
+.rank {
+  font-size: 1.2rem;
+  color: #1e1028;
+}
+
+.store-header-grid {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  justify-items: center;
+  gap: 12px;
+  font-size: 18px;
+  font-weight: bolder;
+  margin-bottom: 8px;
+  direction: rtl;
+}
+
+.chain {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.chain-logo {
+  width: 65px;
+  height: 40px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+.distance {
+  color: #999;
+}
+
+.store-info p {
+  margin: 0.3rem 0;
+}
+
+.no-results {
+  text-align: center;
+  padding: 2rem;
+  color: #888;
+}
+
+.rtl {
+  direction: rtl;
+  text-align: right;
+}
+
+.store-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 0.5rem;
+}
+
+.store-actions button {
+  padding: 6px 12px;
+  background-color: #562c72;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.store-actions button:hover {
+  background-color: #3a1e4d;
+}
+
+.results-sidebar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: white;
+  border-top: 4px solid #562c72;
+  padding: 1rem;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.store-options-slide {
+  background: #ffffffe7;
+  border-top: 4px solid #1e1028;
+  padding: 10px 12px;
+  margin-top: 20px;
+  animation: slideDown 0.3s ease-in-out;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  border-radius: 0 0 10px 10px;
+}
+
+.options-buttons {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 8px;
+}
+
+.send-btn,
+.save-btn,
+.update-btn {
+  flex: 1; /* make each button grow evenly */
+  background-color: #562c72;
+  color: white;
+  padding: 10px 0;
+  border: none;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background 0.2s;
+}
+
+.send-btn:hover,
+.save-btn:hover,
+.update-btn:hover {
+  background-color: #e9a0e5;
+}
+
+.update-btn {
+  background-color: #1e1028;
+  color: white;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.update-btn:hover {
+  background-color: #3a1e4d;
+}
+
+@keyframes slideDown {
+  from {
+    max-height: 0;
+    opacity: 0;
+  }
+  to {
+    max-height: 300px;
+    opacity: 1;
+  }
+}
+
+.store-options-slide input[type="tel"] {
+  width: 100%;
+  padding: 6px;
+  margin-top: 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  direction: rtl;
+}
+
+.product-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 16px;
+  direction: rtl;
+  background: #fff;
+}
+
+.product-table th,
+.product-table td {
+  padding: 7px 8px;
+  text-align: right;
+  border-bottom: 1px solid #eee;
+}
+
+.missing-product {
+  background: #ffeaea;
+  color: #d11a2a;
+  font-weight: bold;
+}
+
+.missing-product-text {
+  color: #d11a2a;
+  font-weight: bold;
+}
+
+.store-attributes {
+  display: flex;
+  gap: 10px;
+  margin: 10px 0;
+  align-items: center;
+  justify-content: center;
+}
+
+.attr-chip-vertical {
+  background: #eec6f8;
+  color: #3a1e4d;
+  padding: 6px 18px;
+  border-radius: 16px;
+  font-size: 15px;
+  font-weight: 600;
+  box-shadow: 0 2px 7px 0 rgba(90, 30, 100, 0.07);
+  border: 1px solid #f6e5fa;
+  margin: 0 auto; /* Center the chip horizontally */
+  width: max-content;
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+
+.store-status {
+  margin-right: 6px;
+  padding: 2px 8px;
+  border-radius: 9px;
+  font-size: 0.97rem;
+  font-weight: 600;
+  vertical-align: middle;
+}

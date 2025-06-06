@@ -8,6 +8,7 @@ import requests
 import os
 import mysql.connector
 from twilio.rest import Client
+from datetime import datetime
 from dotenv import load_dotenv
 load_dotenv()  # this loads variables from .env into os.environ
 
@@ -156,6 +157,37 @@ def get_suggestions():
     return jsonify(suggestions)
 
 ### Finding The Best Supermarket
+def get_products_in_supermarket(cursor, store_id):
+    cursor.execute("SELECT item_code, item_price FROM store_prices WHERE store_id = %s", (store_id,))
+    return {row[0]: row[1] for row in cursor.fetchall()}
+
+def calculate_match_ratio(user_products, store_products):
+    user_item_codes = set(user_products.keys())
+    available_item_codes = set(store_products.keys())
+    matched = user_item_codes & available_item_codes
+    return len(matched) / len(user_item_codes) if user_item_codes else 0
+
+def calculate_total_cost(user_products, store_products):
+    total = 0
+    for code, details in user_products.items():
+        quantity = details.get("quantity", 1)
+        price = store_products.get(code)
+        if price is not None:
+            total += quantity * price
+    return round(total, 2)
+
+# We'll improve this later, but for now
+def check_if_open_now(store):
+    # Assuming store['opening_hours'] contains hours like "08:00-22:00"
+    from datetime import datetime
+    try:
+        now = datetime.now().time()
+        open_str, close_str = store.get("opening_hours", "00:00-23:59").split("-")
+        open_time = datetime.strptime(open_str, "%H:%M").time()
+        close_time = datetime.strptime(close_str, "%H:%M").time()
+        return open_time <= now <= close_time
+    except:
+        return False  # fallback if format is unexpected
 
 # Find Nearby Stores Within Radius
 @app.route("/api/find-nearby-stores/<int:list_id>", methods=["GET"])
@@ -188,10 +220,100 @@ def find_nearby_stores(list_id):
     columns = [col[0] for col in cursor.description]
     result = [dict(zip(columns, s)) for s in stores]
 
+
     cursor.close()
     conn.close()
 
     return jsonify(result)
+
+# For each matching store, check product availability and cost
+@app.route("/api/evaluate-supermarkets/<int:list_id>", methods=["POST"])
+def evaluate_supermarkets(list_id):
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT * FROM user_lists WHERE id = %s", (list_id,))
+    user_list = cursor.fetchone()
+    if not user_list:
+        return jsonify({"error": "List not found"}), 404
+
+    try:
+        products = json.loads(user_list["products"])  # {item_code: {quantity, ...}}
+    except Exception as e:
+        print("❌ Failed to parse products:", e)
+        return jsonify({"error": "Invalid product format"}), 400
+
+    nearby_store_ids = request.json.get("store_ids", [])
+    if not nearby_store_ids:
+        return jsonify({"error": "No store IDs provided"}), 400
+
+    results = []
+    item_codes = list(products.keys())
+
+    # Get all product metadata once (outside the loop)
+    code_to_info = {}
+    if item_codes:
+        placeholders = ", ".join(["%s"] * len(item_codes))
+        cursor.execute(
+            f"SELECT item_code, item_name, unit_qty FROM products WHERE item_code IN ({placeholders})",
+            item_codes,
+        )
+        code_to_info = {row["item_code"]: row for row in cursor.fetchall()}
+
+    for store_id in nearby_store_ids:
+        if not item_codes:
+            continue
+
+        placeholders = ", ".join(["%s"] * len(item_codes))
+        query = f"""
+            SELECT s.item_code, s.item_price
+            FROM store_prices s
+            WHERE s.store_id = %s AND s.item_code IN ({placeholders})
+        """
+        cursor.execute(query, [store_id] + item_codes)
+        available = cursor.fetchall()
+
+        if not available:
+            continue
+
+        available_codes = {item["item_code"] for item in available}
+        match_ratio = len(available_codes) / len(products)
+        store_prices = {item["item_code"]: item["item_price"] for item in available}
+
+        try:
+            total_cost = sum(
+                float(store_prices[code]) * products[code].get("quantity", 1)
+                for code in products if code in store_prices
+            )
+        except Exception as e:
+            print(f"❌ Failed to calculate total cost for store {store_id}: {e}")
+            continue
+
+        # Build product breakdown
+        store_products = []
+        for code, user_prod in products.items():
+            prod_meta = code_to_info.get(code, {})
+            store_products.append({
+                "item_code": code,
+                "name": prod_meta.get("item_name", code),
+                "unit": prod_meta.get("unit_qty", ""),
+                "quantity": user_prod.get("quantity", 1),
+                "price": float(store_prices[code]) if code in store_prices else None,
+                "missing": code not in store_prices
+            })
+        print(store_products)
+        results.append({
+            "store_id": store_id,
+            "match_ratio": round(match_ratio, 2),
+            "total_cost": round(total_cost, 2),
+            "products": store_products  # This is what the frontend will render
+        })
+
+    print(results)
+    cursor.close()
+    conn.close()
+
+    return jsonify(results)
 
 
 ### DB Logic
@@ -409,6 +531,8 @@ def save_list():
         # Extract latitude and longitude
         latitude = data.get("latitude")
         longitude = data.get("longitude")
+        is_open_now = data.get("is_open_now", False)
+
 
         required = ["user_id", "list_name", "address", "supermarket_radius", "preferences", "products"]
         for field in required:
@@ -422,8 +546,8 @@ def save_list():
         INSERT INTO user_lists (
         user_id, list_name, address, latitude, longitude,
         supermarket_radius, supermarket_attributes,
-        dietary_preferences, products, total_price, is_favorite
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        dietary_preferences, products, total_price, is_favorite, is_open_now
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
 
         cursor.execute(query, (
@@ -438,6 +562,7 @@ def save_list():
             json.dumps(data["products"]),
             data.get("total_price"),
             data.get("is_favorite", 0),
+            is_open_now,
         ))
         conn.commit()
         print(data)
@@ -448,6 +573,18 @@ def save_list():
         saved_list = cursor.fetchone()
         columns = [col[0] for col in cursor.description]
         saved_list_dict = dict(zip(columns, saved_list))
+
+        # Normalize created_at to ISO string (if not None)
+        created_at = saved_list_dict.get("created_at")
+        if created_at and isinstance(created_at, datetime):
+            saved_list_dict["created_at"] = created_at.isoformat()
+        elif created_at and isinstance(created_at, str):
+            # If it's a string, parse and reformat
+            try:
+                dt = datetime.strptime(created_at, "%Y-%m-%d %H:%M:%S")
+                saved_list_dict["created_at"] = dt.isoformat()
+            except Exception:
+                pass  # fallback: leave as is
 
         cursor.close()
         conn.close()
@@ -484,12 +621,40 @@ def get_user_lists():
     conn.close()
     return jsonify(lists)
 
+# Get user last list
+@app.route("/api/user-last-list", methods=["GET"])
+def get_user_last_list():
+    user_id = request.args.get("user_id")
+    if not user_id:
+        return jsonify({"error": "Missing user_id parameter"}), 400
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute(
+        "SELECT * FROM user_lists WHERE user_id = %s ORDER BY created_at DESC LIMIT 1",
+        (user_id,)
+    )
+    last_list = cursor.fetchone()
+
+    if not last_list:
+        return jsonify({"message": "No lists found for this user"}), 404
+
+    # Convert fields for frontend
+    last_list["created_at"] = last_list["created_at"].isoformat()
+    if "total_price" in last_list and last_list["total_price"] is not None:
+        last_list["total_price"] = float(last_list["total_price"])
+
+    cursor.close()
+    conn.close()
+    return jsonify(last_list)
+
 # Update List Name
 @app.route("/api/update-list-name", methods=["POST"])
 def update_list_name():
     data = request.get_json()
     list_id = data.get("list_id")
     new_name = data.get("list_name")
+
 
     if not list_id or not new_name:
         return jsonify({"error": "Missing list ID or new name"}), 400
@@ -509,6 +674,32 @@ def update_list_name():
     finally:
         cursor.close()
         conn.close()
+
+@app.route("/api/update-list-price", methods=["POST"])
+def update_list_price():
+    data = request.get_json()
+    list_id = data.get("list_id")
+    total_price = data.get("total_price")
+
+    if not list_id or total_price is None:
+        return jsonify({"error": "Missing list ID or price"}), 400
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE user_lists SET total_price = %s WHERE id = %s",
+            (total_price, list_id)
+        )
+        conn.commit()
+        return jsonify({"message": "List price updated successfully"}), 200
+    except Exception as e:
+        print("Error updating list price:", e)
+        return jsonify({"error": "Failed to update list price"}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
 
 # Update Favorite List
 @app.route("/api/update-list-favorite", methods=["POST"])
@@ -635,6 +826,9 @@ def get_users():
         return jsonify(users)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# Helper functions
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

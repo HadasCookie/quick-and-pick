@@ -30,6 +30,7 @@ const Address = () => {
   const [radius, setRadius] = useState(
     currentList?.supermarket_radius || user?.supermarket_radius || 5
   );
+
   const [accessibility, setAccessibility] = useState(
     currentList?.accessibility || user?.disabled_permit || false
   );
@@ -40,7 +41,7 @@ const Address = () => {
     currentList?.has_free_parking || false
   );
   const [hasDelivery, setHasDelivery] = useState(
-    currentList?.has_delivery || false
+    currentList?.delivery_available || false
   );
   const [isOpenNow, setIsOpenNow] = useState(false);
 
@@ -62,7 +63,7 @@ const Address = () => {
         setAccessibility(parsed.is_supermarket_accessibility || false);
         setHasDisabledParking(parsed.has_disabled_parking || false);
         setHasFreeParking(parsed.has_free_parking || false);
-        setHasDelivery(parsed.has_delivery || false);
+        setHasDelivery(parsed.delivery_available || false);
       } catch (err) {
         console.error("Failed to parse supermarket_attributes from user:", err);
       }
@@ -205,10 +206,8 @@ const Address = () => {
         is_supermarket_accessibility: accessibility,
         has_disabled_parking: hasDisabledParking,
         has_free_parking: hasFreeParking,
-        has_delivery: hasDelivery,
+        delivery_available: hasDelivery,
       };
-      console.log("latitude:", latitude);
-      console.log("longitude:", longitude);
 
       setCurrentList({
         address,
@@ -217,7 +216,15 @@ const Address = () => {
         supermarket_radius: radius,
         supermarket_attributes,
         preferences,
+        is_open_now: isOpenNow,
       });
+
+      console.log("🧾 Current user preferences:", user.preferences);
+      console.log(
+        "🧾 Current user supermarket attributes:",
+        user.supermarket_attributes
+      );
+      console.log("🧾 Current list: ", currentList);
 
       navigate("/FindCheapest");
     }
