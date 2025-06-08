@@ -293,6 +293,31 @@
   gap: 20px;
 }
 
+.preferences-preview {
+  margin-top: 10px;
+  border-radius: 16px;
+  color: #3a1e4d;
+  font-size: 1rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  direction: rtl;
+}
+
+.preferences-preview strong {
+  margin-left: 8px;
+  font-weight: bold;
+  color: #562c72;
+}
+
+@media (max-width: 600px) {
+  .preferences-preview {
+    font-size: 0.95rem;
+    padding: 6px 8px;
+    border-radius: 12px;
+  }
+}
+
 /* Fade animation */
 .cart-message {
   position: fixed;

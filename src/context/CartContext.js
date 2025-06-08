@@ -54,6 +54,7 @@ export const CartProvider = ({ children }) => {
         cartItems,
         addItem,
         removeItem,
+        setCartItems,
         clearCart,
         generateCartProducts,
       }}

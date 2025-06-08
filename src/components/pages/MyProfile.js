@@ -4,6 +4,7 @@ import "./MyProfile.css";
 import Footer from "../Footer";
 import { UserContext } from "../../context/UserContext";
 import { ListsContext } from "../../context/ListsContext";
+import { CartContext } from "../../context/CartContext";
 
 const MyProfile = () => {
   const navigate = useNavigate();
@@ -31,11 +32,8 @@ const MyProfile = () => {
   const [showProductsPopup, setShowProductsPopup] = useState(false);
   const [activeProducts, setActiveProducts] = useState([]);
   const [cartMessage, setCartMessage] = useState("");
-
-  const handleReSearch = (list) => {
-    setCurrentList(list);
-    navigate("/Address");
-  };
+  const [userEmoji, setUserEmoji] = useState("");
+  const { setCartItems } = useContext(CartContext);
 
   const handleSubscribe = async (list) => {
     try {
@@ -123,8 +121,6 @@ const MyProfile = () => {
   const toggleAccordion = (index) => {
     setActiveAccordion(activeAccordion === index ? null : index); // Toggle accordion
   };
-
-  const [userEmoji, setUserEmoji] = useState("");
 
   const getGreeting = () => {
     const currentHour = new Date().getHours();
@@ -257,6 +253,42 @@ const MyProfile = () => {
     );
     return response.json(); // should return an array of {item_code, item_name, unit_qty}
   }
+
+  // ... inside handleSearchAgain:
+
+  const handleSearchAgain = (list) => {
+    // Parse products as you already do
+    let parsedList = { ...list };
+    if (typeof parsedList.products === "string") {
+      parsedList.products = JSON.parse(parsedList.products);
+    }
+
+    // Assume you have access to all product data for enrichment!
+    // Otherwise, fetch full metadata here
+
+    // Create full cart item objects:
+    const cartArray = Object.entries(parsedList.products).map(
+      ([code, prod]) => ({
+        ...prod,
+        id: code,
+        item_code: code,
+        name: prod.name || code, // Fallback to code
+        image: prod.image || "", // Fallback to empty string
+        quantity: prod.quantity || 1,
+        unit: prod.unit || "",
+      })
+    );
+
+    setCartItems(cartArray); // <---- update the cart context directly
+
+    setCurrentList(parsedList);
+
+    // Remove old cart from localStorage if you want a clean slate
+    if (user?.email) {
+      localStorage.removeItem(`cartItems_${user.email}`);
+    }
+    navigate("/Address", { state: { fromList: true } });
+  };
 
   return (
     <>
@@ -766,10 +798,10 @@ const MyProfile = () => {
                                         : list.supermarket_attributes || {};
 
                                     const labels = {
-                                      is_supermarket_accessibility: "♿ נגישות",
-                                      has_disabled_parking: "🅿️ חניית נכים",
-                                      has_free_parking: "🚗 חניה חינם",
-                                      delivery_available: "🚚 משלוחים",
+                                      is_supermarket_accessibility: "נגישות ♿",
+                                      has_disabled_parking: "חניית נכים 🅿️",
+                                      has_free_parking: "חניה חינם 🚗",
+                                      delivery_available: "משלוחים 🚚",
                                     };
 
                                     const selected = Object.entries(attr)
@@ -827,6 +859,12 @@ const MyProfile = () => {
                                   }}
                                 >
                                   📋 הצג רשימה
+                                </button>
+                                <button
+                                  className="profile-btn"
+                                  onClick={() => handleSearchAgain(list)}
+                                >
+                                  🔍 חיפוש מחדש
                                 </button>
 
                                 <button

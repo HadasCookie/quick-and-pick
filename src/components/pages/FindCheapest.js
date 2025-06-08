@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useContext, use } from "react";
+import React, { useState, useEffect, useContext } from "react";
+import { useLocation } from "react-router-dom";
 import "./FindCheapest.css";
 import ShoppingCartSidebar from "../ShoppingCartSidebar";
 import Footer from "../Footer";
 import { ListsContext } from "../../context/ListsContext";
 import { UserContext } from "../../context/UserContext";
+import { CartContext } from "../../context/CartContext";
 
 const images = [
   "/images/shufersalSale.jpeg",
@@ -157,17 +159,13 @@ const FindCheapest = () => {
   const [products, setProducts] = useState([]);
   const [selectedProductId, setSelectedProductId] = useState(null);
   const { user } = useContext(UserContext);
-  const [cartItems, setCartItems] = useState(() => {
-    const storedUser = JSON.parse(localStorage.getItem("user"));
-    const savedCart = storedUser
-      ? localStorage.getItem(`cartItems_${storedUser.email}`)
-      : null;
-    return savedCart ? JSON.parse(savedCart) : [];
-  });
+  const { cartItems, setCartItems, addItem, removeItem, clearCart } =
+    useContext(CartContext);
+  const [rawCartItems, setRawCartItems] = useState([]);
+  const { clearCart: contextClearCart } = useContext(CartContext);
 
   const [cartMessage, setCartMessage] = useState("");
   const { currentList, setCurrentList } = useContext(ListsContext);
-  const [showSavedListOnly] = useState(true);
 
   const [productSearch, setProductSearch] = useState("");
   const [searchResults, setSearchResults] = useState([]);
@@ -175,6 +173,7 @@ const FindCheapest = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchSuggestions, setSearchSuggestions] = useState([]);
   const [selectedSearchProduct, setSelectedSearchProduct] = useState(null);
+  const location = useLocation();
 
   // Update search term with debounce
   useEffect(() => {
@@ -285,6 +284,62 @@ const FindCheapest = () => {
     fetchProducts();
   }, []);
 
+  useEffect(() => {
+    let loadedCart = [];
+
+    // 1. If we're coming from a saved list, use currentList.products
+    if (
+      location.state?.fromList &&
+      currentList &&
+      currentList.products &&
+      Object.keys(currentList.products).length > 0
+    ) {
+      loadedCart = Object.entries(currentList.products).map(([code, prod]) => ({
+        ...prod,
+        id: code,
+        item_code: code,
+      }));
+      if (user?.email) {
+        localStorage.setItem(
+          `cartItems_${user.email}`,
+          JSON.stringify(loadedCart)
+        );
+      }
+      setRawCartItems(loadedCart);
+      return; // prevent fallback
+    }
+
+    // 2. Otherwise, load from localStorage
+    if (user?.email) {
+      const stored = localStorage.getItem(`cartItems_${user.email}`);
+      if (stored) {
+        loadedCart = JSON.parse(stored);
+      }
+    }
+    setRawCartItems(loadedCart);
+  }, [user, currentList, location.state]);
+
+  useEffect(() => {
+    if (!products.length || !rawCartItems.length) {
+      setCartItems([]);
+      return;
+    }
+
+    const enriched = rawCartItems.map((cartItem) => {
+      const prod = products.find(
+        (p) => p.id === cartItem.id || p.id === cartItem.item_code
+      );
+      return {
+        ...cartItem,
+        name: prod?.name || cartItem.name || cartItem.id,
+        image: prod?.image || cartItem.image || "",
+        unit: prod?.unit || cartItem.unit,
+      };
+    });
+
+    setCartItems(enriched);
+  }, [products, rawCartItems, setCartItems]);
+
   const handlePrev = () => {
     setCurrentIndex((prevIndex) =>
       prevIndex === 0 ? images.length - 1 : prevIndex - 1
@@ -320,12 +375,20 @@ const FindCheapest = () => {
 
     setProducts((prevProducts) =>
       prevProducts.map((product) =>
-        product.id === productId && product.quantity === 0
+        product.id === productId
           ? {
               ...product,
-              quantity: product.category === "פירות וירקות" ? 0.5 : 1,
+              quantity:
+                product.quantity === 0
+                  ? product.category === "פירות וירקות"
+                    ? 0.5
+                    : 1
+                  : product.quantity, // If already selected, keep quantity
             }
-          : product
+          : {
+              ...product,
+              quantity: 0, // Unselect all others
+            }
       )
     );
 
@@ -365,15 +428,8 @@ const FindCheapest = () => {
     });
   };
 
-  const clearCart = () => {
-    setCartItems([]);
-    if (user?.email) {
-      localStorage.removeItem(`cartItems_${user.email}`);
-    }
-  };
-
   const addToCart = (product) => {
-    setCartItems((prevCart) => {
+    setRawCartItems((prevCart) => {
       const existingItem = prevCart.find((item) => item.id === product.id);
 
       if (existingItem) {
@@ -396,15 +452,7 @@ const FindCheapest = () => {
 
     // Show notification message
     setCartMessage(`${product.name} נוסף לעגלה`);
-    setTimeout(() => setCartMessage(""), 2000); // Hide message after 2 seconds
-  };
-
-  const removeItem = (itemId, ItemName) => {
-    setCartItems((prevCart) => prevCart.filter((item) => item.id !== itemId));
-
-    // Show notification message
-    setCartMessage(`${ItemName} הוסר מהעגלה`);
-    setTimeout(() => setCartMessage(""), 2000); // Hide message after 2 seconds
+    setTimeout(() => setCartMessage(""), 2000);
   };
 
   // Filter products based on selected category and subcategory
@@ -435,6 +483,14 @@ const FindCheapest = () => {
   }
 
   const displayedItems = productSearch ? searchResults : filteredProducts;
+
+  const handleClearCart = () => {
+    contextClearCart(); // clears cartItems in context
+    setRawCartItems([]); // clears local rawCartItems
+    if (user?.email) {
+      localStorage.removeItem(`cartItems_${user.email}`);
+    }
+  };
 
   return (
     <>
@@ -480,7 +536,7 @@ const FindCheapest = () => {
           onClose={() => setIsCartOpen(false)}
           cartItems={cartItems}
           removeItem={removeItem}
-          clearCart={clearCart}
+          clearCart={handleClearCart}
           currentList={currentList}
         />
 

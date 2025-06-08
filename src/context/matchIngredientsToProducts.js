@@ -1,3 +1,6 @@
+import stringSimilarity from "string-similarity";
+
+// Hebrew fraction support
 const fractionMap = {
   "¼": 0.25,
   "½": 0.5,
@@ -10,20 +13,19 @@ const fractionMap = {
   "⅘": 0.8,
 };
 
-const normalizeName = (name) => {
-  return name
+const normalizeName = (name) =>
+  (name || "")
     .replace(/[\(\[].*?[\)\]]/g, "") // Remove parenthesis content
     .replace(/[.,/#!$%^&*;:{}=\-_`~]/g, "")
-    .replace(/\s+/g, " ") // Collapse spaces
+    .replace(/\s+/g, " ")
     .trim();
-};
 
 const simplifyUnit = (unit) => {
   if (!unit) return "";
   if (unit.includes("כפ")) return "כפית/ות";
-  if (unit.includes("כף")) return "כף/ות";
+  if (unit.includes("כף")) return "כף/פות";
   if (unit.includes("כוס")) return "כוס/ות";
-  if (unit.includes("גרם") || unit.includes("ג")) return "גרמ/ים";
+  if (unit.includes("גרם") || unit.includes("ג")) return "גרם/ים";
   return unit;
 };
 
@@ -45,7 +47,32 @@ const parseLine = (line) => {
   return null;
 };
 
+/**
+ * Main function: gets an ingredient list, finds the best food product for each, merges duplicates.
+ */
 const matchIngredientsToProducts = (recipeText, availableProducts = []) => {
+  // Only look at food categories!
+  const foodCategories = [
+    "מזון יבש",
+    "מוצרי חלב",
+    "בשר",
+    "פירות וירקות",
+    "מאפים",
+    "משקאות",
+    "דגנים",
+    "קפואים",
+    "טבעוני",
+    "מוצרי קירור",
+  ];
+
+  // Filter out irrelevant categories (פארם, סבון וכו׳)
+  const foodProducts = availableProducts.filter(
+    (p) =>
+      p &&
+      p.item_name &&
+      foodCategories.some((cat) => (p.category || "").includes(cat))
+  );
+
   const lines = recipeText
     .split("\n")
     .map((line) => line.trim())
@@ -53,13 +80,24 @@ const matchIngredientsToProducts = (recipeText, availableProducts = []) => {
 
   const parsed = lines.map(parseLine).filter(Boolean);
 
-  // Merge duplicates
+  // Merge duplicates by normalized name + unit
   const merged = {};
+
   parsed.forEach(({ name, unit, quantity }) => {
-    const baseMatch = availableProducts.find(
-      (p) => name.includes(p.name) || p.name.includes(name)
+    // Use string similarity to find the closest product
+    const candidates = foodProducts.map((p) => p.item_name);
+    const { bestMatch, bestMatchIndex } = stringSimilarity.findBestMatch(
+      name,
+      candidates
     );
-    const matchedName = baseMatch ? baseMatch.name : name;
+
+    // Only use strong matches (you can tweak threshold)
+    let matchedName = name;
+    let matchedCategory = "לא ידוע";
+    if (bestMatch.rating > 0.35 && foodProducts[bestMatchIndex]) {
+      matchedName = foodProducts[bestMatchIndex].item_name;
+      matchedCategory = foodProducts[bestMatchIndex].category || "לא ידוע";
+    }
 
     const key = `${matchedName}_${unit}`;
     if (!merged[key]) {
@@ -67,7 +105,7 @@ const matchIngredientsToProducts = (recipeText, availableProducts = []) => {
         name: matchedName,
         unit,
         quantity,
-        category: baseMatch?.category || "לא ידוע",
+        category: matchedCategory,
       };
     } else {
       merged[key].quantity += quantity;

@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { LoadScript, Autocomplete } from "@react-google-maps/api";
 import "./Address.css";
 import { LocationContext } from "../../context/LocationContext";
@@ -25,6 +25,7 @@ const Address = () => {
   const [autocomplete, setAutocomplete] = useState(null);
   const [isLocationFetched, setIsLocationFetched] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Supermarket filters
   const [radius, setRadius] = useState(
@@ -226,7 +227,9 @@ const Address = () => {
       );
       console.log("🧾 Current list: ", currentList);
 
-      navigate("/FindCheapest");
+      navigate("/FindCheapest", {
+        state: { fromList: location.state?.fromList || false },
+      });
     }
   };
 
