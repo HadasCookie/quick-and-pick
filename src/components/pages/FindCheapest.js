@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useContext } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import "./FindCheapest.css";
 import ShoppingCartSidebar from "../ShoppingCartSidebar";
 import Footer from "../Footer";
 import { ListsContext } from "../../context/ListsContext";
 import { UserContext } from "../../context/UserContext";
 import { CartContext } from "../../context/CartContext";
+import { LocationContext } from "../../context/LocationContext";
 
 const images = [
   "/images/shufersalSale.jpeg",
@@ -151,6 +152,8 @@ const categories = [
 ];
 
 const FindCheapest = () => {
+  const navigate = useNavigate();
+
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState(null);
@@ -159,13 +162,16 @@ const FindCheapest = () => {
   const [products, setProducts] = useState([]);
   const [selectedProductId, setSelectedProductId] = useState(null);
   const { user } = useContext(UserContext);
+
   const { cartItems, setCartItems, addItem, removeItem, clearCart } =
     useContext(CartContext);
   const [rawCartItems, setRawCartItems] = useState([]);
   const { clearCart: contextClearCart } = useContext(CartContext);
 
   const [cartMessage, setCartMessage] = useState("");
-  const { currentList, setCurrentList } = useContext(ListsContext);
+  const { userLists, setUserLists, currentList, setCurrentList } =
+    useContext(ListsContext);
+  const { address } = useContext(LocationContext);
 
   const [productSearch, setProductSearch] = useState("");
   const [searchResults, setSearchResults] = useState([]);
@@ -173,6 +179,9 @@ const FindCheapest = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchSuggestions, setSearchSuggestions] = useState([]);
   const [selectedSearchProduct, setSelectedSearchProduct] = useState(null);
+
+  const [isLoading, setIsLoading] = useState(false);
+
   const location = useLocation();
 
   // Update search term with debounce
@@ -492,8 +501,158 @@ const FindCheapest = () => {
     }
   };
 
+  const handleFindNearbyStores = async () => {
+    if (cartItems.length === 0) {
+      alert("🛒 העגלה ריקה, לא ניתן לחפש סופר.");
+      return;
+    }
+
+    setIsLoading(true); // Show loading spinner
+
+    // Normalize products
+    const cartProducts = {};
+    cartItems.forEach((item) => {
+      const code = item.item_code || item.id;
+      if (code && item.quantity > 0) {
+        cartProducts[code] = {
+          price: item.price || null,
+          unit: item.unit || "null",
+          quantity: item.quantity,
+        };
+      }
+    });
+
+    console.log("🧪 cartItems sample:", cartItems);
+
+    // Generate default list name automatically
+    const usedNames = userLists
+      .map((list) => list.list_name)
+      .filter((name) => /^רשימה #\d+$/.test(name));
+    const usedNumbers = usedNames.map((name) => parseInt(name.split("#")[1]));
+    const nextNumber = Math.max(0, ...usedNumbers) + 1;
+    const listName = `רשימה #${nextNumber}`;
+
+    const prefs = currentList?.preferences || user.preferences || {};
+    const supermarketAttrs =
+      currentList?.supermarket_attributes || user.supermarket_attributes || {};
+
+    const payload = {
+      user_id: user.id,
+      list_name: listName,
+      address: currentList?.address || address,
+      latitude: currentList?.latitude || user.latitude || null,
+      longitude: currentList?.longitude || user.longitude || null,
+      supermarket_radius:
+        currentList?.supermarket_radius || user.supermarket_radius || 5,
+      preferences: prefs,
+      supermarket_attributes: supermarketAttrs,
+      products: cartProducts,
+      is_open_now: currentList?.is_open_now || false,
+      is_favorite: 0,
+      total_price: null,
+    };
+
+    try {
+      // 🔄 Save list first
+      const saveRes = await fetch("http://localhost:5000/api/save-list", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!saveRes.ok) {
+        throw new Error("שמירת הרשימה נכשלה");
+      }
+
+      const savedList = await saveRes.json();
+      setUserLists([savedList, ...userLists]);
+      const listId = savedList.id;
+
+      if (!listId) {
+        alert("שגיאה: מזהה רשימה לא נמצא");
+        return;
+      }
+
+      // 📍 Find nearby stores using the saved list ID
+      const res = await fetch(
+        `http://localhost:5000/api/find-nearby-stores/${listId}`
+      );
+      const stores = await res.json();
+
+      console.log("🟦 supermarketAttrs: ", supermarketAttrs);
+      console.log("🟧 Raw stores: ", stores);
+
+      // Update later
+      const filteredStores = stores.filter((store) => {
+        // DB may return 0/1 (int), so convert to boolean for check
+        const storeHasDelivery = !!store.has_delivery;
+        const storeHasParking = !!store.has_parking;
+        const storeIsAccessible = !!store.is_accessible;
+
+        const matchesDelivery =
+          !supermarketAttrs.has_delivery || storeHasDelivery;
+        const matchesParking = !supermarketAttrs.has_parking || storeHasParking;
+        const matchesAccessible =
+          !supermarketAttrs.is_accessible || storeIsAccessible;
+
+        return matchesDelivery && matchesParking && matchesAccessible;
+      });
+
+      console.log("🎯 Stores after attribute match:", filteredStores);
+      const storeIds = filteredStores.map((s) => s.store_id);
+
+      const response = await fetch(
+        `http://localhost:5000/api/evaluate-supermarkets/${listId}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ store_ids: storeIds }),
+        }
+      );
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Server error: ${errText}`);
+      }
+      const evaluation = await response.json(); // safe to call
+
+      //console.log("🏷️ Evaluation Results:", evaluation);
+
+      const enrichedStores = filteredStores
+        .map((store) => {
+          const evalData =
+            evaluation.find((e) => e.store_id === store.store_id) || {};
+          return {
+            ...store,
+            ...evalData,
+            products: evalData.products || [],
+            opening_hours: store.opening_hours ?? "לא ידוע",
+          };
+        })
+        // Only keep stores that actually have any products found
+        .filter((store) => store.products && store.products.length > 0);
+      setIsLoading(false);
+      navigate("/results", {
+        state: { results: enrichedStores, lastSavedListId: listId },
+      });
+    } catch (error) {
+      setIsLoading(false);
+      console.error("❌ שגיאה:", error);
+      alert("שגיאה בעת חיפוש סופרים.");
+    }
+  };
+
   return (
     <>
+      {isLoading && (
+        <div className="loading-overlay">
+          <div className="spinner" />
+          <div style={{ marginTop: 12, color: "#3a1e4d" }}>
+            ...מחפש סופרים מתאימים
+          </div>
+        </div>
+      )}
+
       <div className="find-cheapest-container">
         {/* Carousel */}
         <div className="carousel-wrapper">
@@ -538,6 +697,7 @@ const FindCheapest = () => {
           removeItem={removeItem}
           clearCart={handleClearCart}
           currentList={currentList}
+          onFindNearbyStores={handleFindNearbyStores}
         />
 
         {/* Categories Section */}

@@ -6,13 +6,20 @@ from transformers import pipeline
 import pymysql
 import requests
 import os
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 import mysql.connector
 from twilio.rest import Client
 from datetime import datetime
+import smtplib
+from email.mime.text import MIMEText
+from apscheduler.schedulers.background import BackgroundScheduler
+import pytz
 from dotenv import load_dotenv
 load_dotenv()  # this loads variables from .env into os.environ
 
-
+# Initialize Flask app
 app = Flask(__name__)
 CORS(app)  # Allow requests from React frontend
 chatbot = pipeline('text2text-generation', model='google/flan-t5-small')
@@ -22,6 +29,11 @@ DB_HOST = "34.78.145.126"
 DB_USER = "root"
 DB_PASSWORD = os.getenv('DB_PASSWORD')
 DB_NAME = "quickpick"
+
+SMTP_USER = os.getenv("SMTP_USER")
+SMTP_PASS = os.getenv("SMTP_PASS")
+SMTP_SERVER = os.getenv("SMTP_SERVER")
+SMTP_PORT = int(os.getenv("SMTP_PORT", 587))  # Default to 587 if not set
 
 # ✅ API Endpoints
 FOODS_DICTIONARY_URL = "https://www.foodsdictionary.co.il/services/c/getSuggestions.php"
@@ -38,6 +50,7 @@ TWILIO_PHONE_NUMBER = "whatsapp:+14155238886"         # always this in sandbox
 def send_list_sms():
     try:
         data = request.json
+        print("Received Data:", data)
         raw_phone = data.get("phone", "").strip()
 
         # Remove all characters that are not digits
@@ -56,8 +69,8 @@ def send_list_sms():
 
         # Format the message
         product_lines = [
-            f"- {name}: {info['quantity']} {info['unit']}"
-            for name, info in products.items()
+            f"{info['quantity']} -   {info['name']}"
+            for code, info in products.items()
         ]
         message_body = f"📋 {list_name}:\n" + "\n".join(product_lines)
 
@@ -315,6 +328,73 @@ def evaluate_supermarkets(list_id):
 
     return jsonify(results)
 
+def get_best_list_price(list_id):
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    # Get the user's list and its products
+    cursor.execute("SELECT * FROM user_lists WHERE id = %s", (list_id,))
+    user_list = cursor.fetchone()
+    if not user_list:
+        cursor.close()
+        conn.close()
+        return None, None  # No such list
+
+    try:
+        products = json.loads(user_list["products"])
+    except Exception:
+        cursor.close()
+        conn.close()
+        return None, None
+
+    # Find all nearby stores within the radius
+    lat, lng, radius = user_list["latitude"], user_list["longitude"], user_list["supermarket_radius"]
+    cursor.execute("""
+        SELECT id FROM stores WHERE 
+            (6371 * acos(
+                cos(radians(%s)) *
+                cos(radians(latitude)) *
+                cos(radians(longitude) - radians(%s)) +
+                sin(radians(%s)) * sin(radians(latitude))
+            )) <= %s
+    """, (lat, lng, lat, radius))
+    store_rows = cursor.fetchall()
+    store_ids = [r["id"] for r in store_rows]
+
+    # If no stores found, can't calculate
+    if not store_ids:
+        cursor.close()
+        conn.close()
+        return None, None
+
+    # Evaluate all stores to get the lowest price with max match ratio
+    best_price = None
+    best_store = None
+    for store_id in store_ids:
+        # Get product prices for this store
+        placeholders = ", ".join(["%s"] * len(products))
+        codes = list(products.keys())
+        query = f"""
+            SELECT item_code, item_price FROM store_prices
+            WHERE store_id = %s AND item_code IN ({placeholders})
+        """
+        cursor.execute(query, [store_id] + codes)
+        items = cursor.fetchall()
+        store_prices = {i["item_code"]: float(i["item_price"]) for i in items}
+        match_ratio = len(store_prices) / len(products)
+        if match_ratio < 0.7:  # Optional: Only alert for decent matches, adjust as needed
+            continue
+        total = sum(
+            store_prices.get(code, 0) * products[code].get("quantity", 1)
+            for code in codes if code in store_prices
+        )
+        if best_price is None or total < best_price:
+            best_price = total
+            best_store = store_id
+    cursor.close()
+    conn.close()
+    return best_price, best_store
+
 
 ### DB Logic
 # Establish Database Connection
@@ -561,7 +641,7 @@ def save_list():
             json.dumps(data.get("preferences", {})),
             json.dumps(data["products"]),
             data.get("total_price"),
-            data.get("is_favorite", 0),
+            data.get("is_favorite", 0),  # Default to False if not provided
             is_open_now,
         ))
         conn.commit()
@@ -655,19 +735,19 @@ def update_list_name():
     list_id = data.get("list_id")
     new_name = data.get("list_name")
 
-
     if not list_id or not new_name:
         return jsonify({"error": "Missing list ID or new name"}), 400
 
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
+        # Update both list name and is_favorite
         cursor.execute(
-            "UPDATE user_lists SET list_name = %s WHERE id = %s",
+            "UPDATE user_lists SET list_name = %s, is_favorite = 1 WHERE id = %s",
             (new_name, list_id)
         )
         conn.commit()
-        return jsonify({"message": "List name updated successfully"}), 200
+        return jsonify({"message": "List name and favorite status updated successfully"}), 200
     except Exception as e:
         print("Error updating list name:", e)
         return jsonify({"error": "Failed to update list name"}), 500
@@ -699,7 +779,6 @@ def update_list_price():
     finally:
         cursor.close()
         conn.close()
-
 
 # Update Favorite List
 @app.route("/api/update-list-favorite", methods=["POST"])
@@ -813,7 +892,6 @@ def get_products():
     conn.close()
     return jsonify(products)
 
-
 # Get All Users (For Testing)
 @app.route('/api/users', methods=['GET'])
 def get_users():
@@ -828,9 +906,310 @@ def get_users():
         return jsonify({"error": str(e)}), 500
 
 
-# Helper functions
+# Price Drop Alerts
+def send_email(to_email, subject, html_body, text_body=None):
+    msg = MIMEMultipart("alternative")
+    msg['Subject'] = subject
+    msg['From'] = SMTP_USER
+    msg['To'] = to_email
+
+    msg.attach(MIMEText(text_body or "יש עדכון מחיר ברשימת הקניות שלך!", "plain", "utf-8"))
+    msg.attach(MIMEText(html_body, "html", "utf-8"))
+
+    print(msg.as_string())
+
+    try:
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASS)
+            server.sendmail(SMTP_USER, [to_email], msg.as_string())
+        print("Email sent to", to_email)
+    except Exception as e:
+        print("Failed to send email:", e)
+
+def get_best_list_offer(list_id):
+    """Finds the best supermarket for a user list, including detailed breakdown."""
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # Get the user's list and its products
+    cursor.execute("SELECT * FROM user_lists WHERE id = %s", (list_id,))
+    user_list = cursor.fetchone()
+    if not user_list:
+        cursor.close()
+        conn.close()
+        return None
+
+    try:
+        products = json.loads(user_list["products"])
+    except Exception:
+        cursor.close()
+        conn.close()
+        return None
+
+    # Find all nearby stores within the radius
+    lat, lng, radius = user_list["latitude"], user_list["longitude"], user_list["supermarket_radius"]
+    cursor.execute("""
+        SELECT * FROM stores WHERE 
+            (6371 * acos(
+                cos(radians(%s)) *
+                cos(radians(latitude)) *
+                cos(radians(longitude) - radians(%s)) +
+                sin(radians(%s)) * sin(radians(latitude))
+            )) <= %s
+    """, (lat, lng, lat, radius))
+    stores = cursor.fetchall()
+    print("Nearby stores found:", stores)
+    if not stores:
+        cursor.close()
+        conn.close()
+        return None
+
+    best_offer = None
+    for store in stores:
+        store_id = store["store_id"]
+        # Get product prices for this store
+        codes = list(products.keys())
+        if not codes:
+            continue
+        placeholders = ", ".join(["%s"] * len(codes))
+        query = f"""
+            SELECT item_code, item_price FROM store_prices
+            WHERE store_id = %s AND item_code IN ({placeholders})
+        """
+        cursor.execute(query, [store_id] + codes)
+        items = cursor.fetchall()
+        store_prices = {i["item_code"]: float(i["item_price"]) for i in items}
+        match_ratio = len(store_prices) / len(products)
+        if match_ratio < 0.7:  # Only consider supermarkets with at least 70% product match
+            continue
+        total = sum(
+            store_prices.get(code, 0) * products[code].get("quantity", 1)
+            for code in codes if code in store_prices
+        )
+        # Prepare full product details for the email
+        product_details = []
+        # Fetch product names from DB
+        codes = list(products.keys())
+        code_to_info = {}
+        if codes:
+            placeholders = ", ".join(["%s"] * len(codes))
+            cursor.execute(
+                f"SELECT item_code, item_name FROM products WHERE item_code IN ({placeholders})",
+                codes,
+            )
+            code_to_info = {row["item_code"]: row for row in cursor.fetchall()}
+        # After you fetch products and build code_to_info...
+        for code in codes:
+            qty = products[code].get("quantity", 1)
+            price = store_prices.get(code)
+            prod_name = code_to_info.get(code, {}).get("item_name", code)
+            product_details.append({
+                "name": prod_name,
+                "quantity": qty,
+                "price": price,
+                "total": (price or 0) * qty,
+                "missing": price is None
+            })
+        # Save if best offer so far
+        if not best_offer or total < best_offer["total_price"]:
+            best_offer = {
+                "total_price": total,
+                "store": store,
+                "match_ratio": match_ratio,
+                "products": product_details
+            }
+    cursor.close()
+    conn.close()
+    return best_offer  # None if nothing found
+
+def check_price_drops():
+    print("🔔 Running price drop check...", datetime.now())
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT id, user_id, email, list_id, threshold_percent, last_notified_price FROM price_drop_alerts")
+    alerts = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    for alert in alerts:
+        print("Alert being checked:", alert)
+
+        alert_id = alert["id"]
+        email = alert["email"]
+        list_id = alert["list_id"]
+        threshold = alert["threshold_percent"]
+        last_price = alert["last_notified_price"]
+
+        # NEW: Get the latest best offer!
+        offer = get_best_list_offer(list_id)
+        print("Best offer found:", offer)
+
+        if not offer:
+            continue  # No valid supermarket found
+
+        current_price = offer["total_price"]
+        store = offer["store"]
+        match_ratio = offer["match_ratio"]
+        products = offer["products"]
+
+        # If this is the first notification, just set the price and skip
+        if last_price is None or last_price == 0:
+            print(f"First notification for alert {alert_id}, setting last_notified_price to {current_price}")
+            conn2 = get_db_connection()
+            cursor2 = conn2.cursor()
+            cursor2.execute("UPDATE price_drop_alerts SET last_notified_price = %s WHERE id = %s", (current_price, alert_id))
+            conn2.commit()
+            cursor2.close()
+            conn2.close()
+            # continue
+
+        # Compare to last notified price
+        drop_percent = ((last_price - current_price) / last_price) * 100
+        print(f"Price drop for alert {alert_id}: last={last_price}, current={current_price}, drop={drop_percent:.2f}%")
+        if drop_percent >= threshold:
+            # --- Prepare PRETTY HTML Email ---
+            brand_color = "#3a1e4d"
+            header_bg = "#f6e5fa"
+            accent = "#e7baf2"
+            text_color = "#1e1028"
+            button_bg = "#3a1e4d"
+            button_color = "#fff"
+
+            store_name = store.get("store_name", "")
+            store_address = f'{store.get("address", "")}, {store.get("city", "")}'
+            coverage = int(match_ratio * 100)
+
+            html_products = ""
+            for p in products:
+                if p["missing"]:
+                    html_products += f"""
+                        <tr>
+                            <td style="padding:8px; color:#888">{p['name'] if 'name' in p else ''}</td>
+                            <td style="padding:8px; color:#e74c3c;" colspan="2">❌ חסר בחנות</td>
+                        </tr>
+                    """
+                else:
+                    html_products += f"""
+                        <tr>
+                            <td style="padding:8px">{p['name'] if 'name' in p else ''}</td>
+                            <td style="padding:8px">{p['quantity']}</td>
+                            <td style="padding:8px">{p['price']:.2f} ₪</td>
+                            <td style="padding:8px">{p['total']:.2f} ₪</td>
+                        </tr>
+                    """
+            email_body = f"""
+            <html dir="rtl" lang="he">
+            <body style="font-family: 'Arial', 'Helvetica Neue', Helvetica, sans-serif; background: #f6e5fa; color: #1e1028; padding: 50px 0 50px 0; margin: 0;">
+                <div style="max-width: 520px; margin: 0 auto; background: #fff; border-radius: 18px; box-shadow: 0 6px 24px #3a1e4d22;">
+                <div style="background: #3a1e4d; color: #fff; border-radius: 18px 18px 0 0; padding: 24px 32px 16px 32px; text-align: right;">
+                    <h1 style="margin:0; font-size: 2.2em; text-align:center;">Quick&Pick</h1>
+                    <h2 style="margin:0; font-size: 1.3em; text-align:center;">🎉 ירידת !מחיר ברשימה שלך</h2>
+                </div>
+                <div style="padding: 22px 32px; text-align: right;">
+                    <p style="font-size:1.1em; margin-top:0;">
+                    <strong>מחיר הרשימה שלך ירד מ־{last_price:.2f} ל־{current_price:.2f} ₪</strong>
+                    <span style="color:#3a1e4d; font-weight:bold;">({drop_percent:.1f}% ירידה!)</span>
+                    </p>
+                    <p style="margin: 0.5em 0;">
+                    <strong>סופרמרקט:</strong> {store_name}<br>
+                    <strong>כתובת:</strong> {store_address}<br>
+                    <strong>סטטוס כיסוי:</strong> {coverage}% מהמוצרים נמצאו בחנות זו
+                    </p>
+                    <table style="width:100%; border-collapse:collapse; margin-top:24px; background: #f6e5fa; border-radius: 10px; text-align:right;">
+                    <thead>
+                        <tr style="background:#e7baf2; color:#1e1028;">
+                        <th style="padding:10px;">מוצר</th>
+                        <th style="padding:10px;">כמות</th>
+                        <th style="padding:10px;">מחיר ליח'</th>
+                        <th style="padding:10px;">סה"כ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {''.join(
+                            f"<tr><td style='padding:8px'>{p['name']}</td>"
+                            f"<td style='padding:8px'>{p['quantity']}</td>"
+                            f"<td style='padding:8px'>{'❌ חסר בחנות' if p['missing'] else f'{p['price']:.2f} ₪'}</td>"
+                            f"<td style='padding:8px'>{'' if p['missing'] else f'{p['total']:.2f} ₪'}</td></tr>"
+                            for p in products
+                        )}
+                    </tbody>
+                    </table>
+                    <div style="text-align:center; margin:36px 0 0 0;">
+                        <a href="https://quickandpick.co.il"
+                            style="display:inline-block; padding:10px 32px; background:#3a1e4d; color:#fff; border-radius:8px; text-decoration:none; font-size:1.2em; font-weight:bold;">
+                            לעדכון הרשימה באתר
+                        </a>
+                    </div>
+                </div>
+                </div>
+            </body>
+            </html>
+            """
+            # Send the email
+            print(f"📧 Sending price drop email to {email} for alert ID {alert_id} and {email_body}")
+            send_email(
+                email,
+                "עדכון: ירידת מחיר ברשימה שלך!",
+                email_body
+            )
+            # Update last_notified_price
+            conn2 = get_db_connection()
+            cursor2 = conn2.cursor()
+            cursor2.execute("UPDATE price_drop_alerts SET last_notified_price = %s WHERE id = %s", (current_price, alert_id))
+            conn2.commit()
+            cursor2.close()
+            conn2.close()
+
+def start_scheduler():
+    scheduler = BackgroundScheduler(timezone=pytz.timezone("Asia/Jerusalem"))
+    # Schedule for 7:00 AM and 7:00 PM
+    scheduler.add_job(check_price_drops, 'cron', hour=7, minute=0)
+    scheduler.add_job(check_price_drops, 'cron', hour=14, minute=20)
+    scheduler.start()
+    print("🔔 Price drop scheduler started!")
+
+# --- Flask routes below as normal ---
+@app.route('/api/subscribe-to-price-drop', methods=['POST'])
+def subscribe_to_price_drop():
+    data = request.get_json()
+    user_id = data.get("user_id")
+    email = data.get("email")
+    list_id = data.get("list_id")
+    threshold = data.get("threshold_percent", 5)
+    last_notified_price = data.get("last_notified_price")
+
+    if not (user_id and email and list_id):
+        return jsonify({"error": "Missing required fields"}), 400
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        # Check if already exists
+        cursor.execute(
+            "SELECT id FROM price_drop_alerts WHERE user_id = %s AND list_id = %s",
+            (user_id, list_id)
+        )
+        exists = cursor.fetchone()
+        if exists:
+            return jsonify({"error": "Already subscribed"}), 409
+
+        cursor.execute(
+            "INSERT INTO price_drop_alerts (user_id, email, list_id, threshold_percent, last_notified_price) VALUES (%s, %s, %s, %s, %s)",
+            (user_id, email, list_id, threshold, last_notified_price)
+        )
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return jsonify({"message": "Subscription successful"}), 200
+    except Exception as e:
+        print("❌ Error subscribing to price drop:", e)
+        return jsonify({"error": "Database error"}), 500
+
 
 if __name__ == "__main__":
+    start_scheduler()
     app.run(host="0.0.0.0", port=5000, debug=True)
 
 

@@ -15,19 +15,19 @@ function Cards() {
               path="/Address"
             />
             <CardItem
-              src="images/find-shoppinglist-ai.jpg"
+              src="images/generate_list.jpg"
               text="AI יצירה של סל קניות מותאם אישית עם"
               path="/ChatBot"
             />
           </ul>
           <ul className="cards__items">
             <CardItem
-              src="images/recipie-to-shoppinglist.jpg"
+              src="images/recipetolist.jpg"
               text="יצירת סל קניות ממתכון"
               path="/CreateList"
             />
             <CardItem
-              src="images/my-profile.jpg"
+              src="images/profile.jpg"
               text="פרופיל מותאם אישית"
               path="/MyProfile"
             />

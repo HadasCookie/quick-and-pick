@@ -35,6 +35,14 @@ const MyProfile = () => {
   const [userEmoji, setUserEmoji] = useState("");
   const { setCartItems } = useContext(CartContext);
 
+  const [priceThreshold, setPriceThreshold] = useState(3);
+  const [notificationListId, setNotificationListId] = useState("");
+  const [notificationListName, setNotificationListName] = useState("");
+  const [notificationThreshold, setNotificationThreshold] = useState(5);
+  useState("");
+  const [listPrice, setListPrice] = useState(null);
+  const [alertsTab, setAlertsTab] = useState("new"); // "new" or "existing"
+
   const handleSubscribe = async (list) => {
     try {
       const response = await fetch(
@@ -45,26 +53,28 @@ const MyProfile = () => {
           body: JSON.stringify({
             email: user.email,
             list_id: list.id,
+            threshold_percent: priceThreshold,
+            last_notified_price: list.total_price || 0,
           }),
         }
       );
 
       const result = await response.json();
       if (response.ok) {
-        alert("📩 You will now receive email updates for price drops!");
+        alert("📩 כעת תקבלו עדכונים בדואר על ירידות מחירים!");
       } else {
-        alert(result.error || "Failed to subscribe.");
+        alert(result.error || "שגיאה בהרשמה.");
       }
     } catch (err) {
-      console.error("Error subscribing to price drop updates", err);
-      alert("Something went wrong. Please try again.");
+      console.error("שגיאה בהרשמה לעדכוני ירידות מחירים", err);
+      alert("משהו השתבש. אנא נסו שוב.");
     }
   };
 
   // fetch lists on mount
   useEffect(() => {
     if (activeTab === "profile") {
-      setLists(userLists);
+      setLists(sortLists(userLists));
       setCurrentPage(0); // Optional: reset to first page when switching tabs
     }
     console.log("User Lists:", userLists);
@@ -254,8 +264,6 @@ const MyProfile = () => {
     return response.json(); // should return an array of {item_code, item_name, unit_qty}
   }
 
-  // ... inside handleSearchAgain:
-
   const handleSearchAgain = (list) => {
     // Parse products as you already do
     let parsedList = { ...list };
@@ -290,6 +298,16 @@ const MyProfile = () => {
     navigate("/Address", { state: { fromList: true } });
   };
 
+  function sortLists(listsArr) {
+    // Favorites first (descending), then newest first (descending by id)
+    return [...listsArr].sort((a, b) => {
+      if ((b.is_favorite || 0) !== (a.is_favorite || 0)) {
+        return (b.is_favorite || 0) - (a.is_favorite || 0);
+      }
+      return b.id - a.id;
+    });
+  }
+
   return (
     <>
       <div className="profile-container">
@@ -298,13 +316,12 @@ const MyProfile = () => {
         </h1>
         <ul className="nav-tabs">
           <li
-            className={`nav-link ${
-              activeTab === "newsletters" ? "active" : ""
-            }`}
-            onClick={() => setActiveTab("newsletters")}
+            className={`nav-link ${activeTab === "alerts" ? "active" : ""}`}
+            onClick={() => setActiveTab("alerts")}
           >
-            ניוזלטרים
+            ההתראות שלי
           </li>
+
           <li
             className={`nav-link ${activeTab === "password" ? "active" : ""}`}
             onClick={() => setActiveTab("password")}
@@ -660,7 +677,7 @@ const MyProfile = () => {
                                             ? { ...l, list_name: newName }
                                             : l
                                         );
-                                        setLists(updated);
+                                        setLists(sortLists(userLists));
                                       }
                                     } catch (err) {
                                       console.error(
@@ -717,7 +734,7 @@ const MyProfile = () => {
                                         return b.is_favorite - a.is_favorite;
                                       });
 
-                                      setLists(updated);
+                                      setLists(sortLists(userLists));
 
                                       // ⭐⭐ Add the notification message here ⭐⭐
                                       const listName =
@@ -927,8 +944,198 @@ const MyProfile = () => {
             </div>
           )}
 
-          {activeTab === "newsletters" && (
-            <div className="tab-pane">ניוזלטרים</div>
+          {activeTab === "alerts" && (
+            <div className="tab-pane alerts-pane">
+              <h2>קבלו התראות על ירידת מחירים 🔔</h2>
+
+              <div className="alerts-card">
+                {/* Accordion */}
+                <div className="alerts-accordion">
+                  {/* New Alert Accordion */}
+                  <div
+                    className={`alerts-accordion-item ${
+                      alertsTab === "new" ? "active" : ""
+                    }`}
+                  >
+                    <div
+                      className="alerts-accordion-header"
+                      onClick={() =>
+                        setAlertsTab(alertsTab === "new" ? "" : "new")
+                      }
+                    >
+                      התראה חדשה
+                    </div>
+                    <div
+                      className="alerts-accordion-content"
+                      style={{
+                        maxHeight: alertsTab === "new" ? "1000px" : "0",
+                        padding: alertsTab === "new" ? "20px 0" : "0 20px",
+                        overflow: "hidden",
+                        transition:
+                          "max-height 0.45s cubic-bezier(.23,1.07,.36,1), padding 0.3s",
+                      }}
+                    >
+                      {alertsTab === "new" && (
+                        <>
+                          <label htmlFor="list-search">בחר רשימה:</label>
+                          <input
+                            list="user-lists-datalist"
+                            type="text"
+                            id="list-search"
+                            placeholder="חפש או בחר רשימה..."
+                            value={notificationListName}
+                            onChange={(e) => {
+                              setNotificationListName(e.target.value);
+                              // If user picked a real list, set ID as well
+                              const match = userLists.find(
+                                (list) => list.list_name === e.target.value
+                              );
+                              setNotificationListId(match ? match.id : "");
+                              // Set price as before
+                              if (match && match.total_price) {
+                                setListPrice(match.total_price);
+                              } else if (match && match.id) {
+                                fetch(
+                                  `http://localhost:5000/api/get-list-price/${match.id}`
+                                )
+                                  .then((res) => res.json())
+                                  .then((data) =>
+                                    setListPrice(data.price || null)
+                                  );
+                              } else {
+                                setListPrice(null);
+                              }
+                            }}
+                            className="profile-input"
+                            autoComplete="off"
+                            style={{ width: "250px" }} // Set width to match dropdown
+                          />
+
+                          <datalist id="user-lists-datalist">
+                            {userLists
+                              .filter(
+                                (list) =>
+                                  !notificationListName ||
+                                  (list.list_name || "")
+                                    .toLowerCase()
+                                    .includes(
+                                      notificationListName.toLowerCase()
+                                    )
+                              )
+                              .sort(
+                                (a, b) =>
+                                  new Date(b.created_at) -
+                                  new Date(a.created_at)
+                              )
+                              .slice(0, 5)
+                              .map((list) => (
+                                <option
+                                  key={list.id}
+                                  value={list.list_name || `רשימה #${list.id}`}
+                                />
+                              ))}
+                          </datalist>
+
+                          <div style={{ margin: "10px 0" }}>
+                            <label>אחוז מינימלי להתראה:</label>
+                            <label>
+                              <input
+                                type="radio"
+                                name="thresh"
+                                value={5}
+                                checked={notificationThreshold === 5}
+                                onChange={() => setNotificationThreshold(5)}
+                              />{" "}
+                              5%
+                            </label>
+                            <label>
+                              <input
+                                type="radio"
+                                name="thresh"
+                                value={10}
+                                checked={notificationThreshold === 10}
+                                onChange={() => setNotificationThreshold(10)}
+                              />{" "}
+                              10%
+                            </label>
+                            <label>
+                              <input
+                                type="radio"
+                                name="thresh"
+                                value={20}
+                                checked={notificationThreshold === 20}
+                                onChange={() => setNotificationThreshold(20)}
+                              />{" "}
+                              20%
+                            </label>
+                          </div>
+                          <button
+                            onClick={async () => {
+                              const res = await fetch(
+                                "http://localhost:5000/api/subscribe-to-price-drop",
+                                {
+                                  method: "POST",
+                                  headers: {
+                                    "Content-Type": "application/json",
+                                  },
+                                  body: JSON.stringify({
+                                    user_id: user.id,
+                                    email: user.email,
+                                    list_id: notificationListId,
+                                    threshold_percent: notificationThreshold,
+                                    last_notified_price: listPrice,
+                                  }),
+                                }
+                              );
+                              if (res.ok) alert("ההתראה נשמרה!");
+                              else alert("שגיאה בשמירה");
+                            }}
+                          >
+                            שמור התראה
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  {/* Existing Alerts Accordion */}
+                  <div
+                    className={`alerts-accordion-item ${
+                      alertsTab === "existing" ? "active" : ""
+                    }`}
+                  >
+                    <div
+                      className="alerts-accordion-header"
+                      onClick={() =>
+                        setAlertsTab(alertsTab === "existing" ? "" : "existing")
+                      }
+                    >
+                      התראות קיימות
+                    </div>
+                    <div
+                      className="alerts-accordion-content"
+                      style={{
+                        maxHeight: alertsTab === "existing" ? "1000px" : "0",
+                        padding: alertsTab === "existing" ? "20px 0" : "0 20px",
+                        overflow: "hidden",
+                        transition:
+                          "max-height 0.45s cubic-bezier(.23,1.07,.36,1), padding 0.3s",
+                      }}
+                    >
+                      {alertsTab === "existing" && (
+                        <div
+                          style={{ marginTop: "1.5em", textAlign: "center" }}
+                        >
+                          <h3>כל ההתראות שלך:</h3>
+                          <div style={{ color: "#562c72", margin: "1.2em 0" }}>
+                            אין עדיין התראות (כאן יוצגו ההתראות הפעילות שלך)
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
 
           {activeTab === "password" && (

@@ -16,6 +16,7 @@ import { CartProvider } from "./context/CartContext";
 import { ListsProvider } from "./context/ListsContext";
 import ChatBot from "./components/pages/ChatBot";
 import SupermarketResults from "./components/pages/SupermarketResults";
+import ScrollToTop from "./components/ScrollToTop";
 
 function App() {
   return (
@@ -26,6 +27,7 @@ function App() {
             {/* Wrap the entire app with the provider */}
             <Router>
               <NavBar />
+              <ScrollToTop />
               <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/CreateList" element={<CreateList />} />

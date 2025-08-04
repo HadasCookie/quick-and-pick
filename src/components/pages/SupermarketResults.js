@@ -33,7 +33,7 @@ const SupermarketResults = () => {
   }, []);
 
   if (!results || results.length === 0) {
-    return <div className="no-results">🔍 No matching supermarkets found.</div>;
+    return <div className="no-results">🔍 לא נמצאו סופרמרקטים מתאימים </div>;
   }
 
   const sorted = [...results].sort((a, b) => {
