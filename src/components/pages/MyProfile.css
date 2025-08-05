@@ -793,8 +793,38 @@ input.personalization-input-small[type="number"] {
 
 .alerts-accordion-content {
   transition: max-height 0.45s cubic-bezier(0.23, 1.07, 0.36, 1), padding 0.3s;
-  background: #fff;
-
-  text-align: בקמאקר;
+  background: #fdf4ff;
+  text-align: center;
   direction: rtl;
+}
+
+.alerts-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #faf7fd;
+  border-radius: 10px;
+  margin: 0 auto;
+}
+
+.alerts-table-header {
+  background: #fdf4ff;
+  color: #1e1028;
+}
+
+.alerts-table th,
+.alerts-table td {
+  padding: 10px 8px;
+  text-align: center;
+}
+
+.alerts-table-row {
+  border-bottom: 1px solid #eee;
+}
+
+.alerts-threshold-select {
+  border: 1.5px solid #e7baf2;
+  border-radius: 8px;
+  padding: 6px 10px;
+  background: #fff;
+  color: #562c72;
 }

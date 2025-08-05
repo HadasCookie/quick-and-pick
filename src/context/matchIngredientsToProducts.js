@@ -1,3 +1,4 @@
+/*
 import stringSimilarity from "string-similarity";
 
 // Hebrew fraction support
@@ -50,6 +51,8 @@ const parseLine = (line) => {
 /**
  * Main function: gets an ingredient list, finds the best food product for each, merges duplicates.
  */
+
+/*
 const matchIngredientsToProducts = (recipeText, availableProducts = []) => {
   // Only look at food categories!
   const foodCategories = [
@@ -116,3 +119,59 @@ const matchIngredientsToProducts = (recipeText, availableProducts = []) => {
 };
 
 export default matchIngredientsToProducts;
+
+*/
+
+/**
+ * Sends the recipe text to the Flask backend and receives matched product data.
+ */
+const matchIngredientsToProducts = async (recipeText) => {
+  try {
+    const response = await fetch("http://localhost:5000/match_ingredients", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ recipe: recipeText }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch matched ingredients");
+    }
+
+    const results = await response.json();
+
+    const merged = {};
+    results.forEach((item) => {
+      const key = `${item.matched_product || item.ingredient}_${item.unit}`;
+      const quantity = parseFloat(item.quantity || 1);
+
+      if (!merged[key]) {
+        merged[key] = {
+          name: item.matched_product || item.ingredient,
+          unit: item.unit || "",
+          quantity,
+          category: item.category || "Unknown",
+          confidence: item.confidence,
+          missing: item.matched_product === null,  
+          barcode: item.barcode || null,
+          matched_product: item.matched_product,
+          ingredient: item.ingredient,
+          original_line: item.original_line,
+          options: item.options || [],
+        };
+      } else {
+        merged[key].quantity += quantity;
+      }
+    });
+
+    return Object.values(merged);
+  } catch (error) {
+    console.error("Error matching ingredients:", error);
+    return [];
+  }
+};
+
+export default matchIngredientsToProducts;
+
+

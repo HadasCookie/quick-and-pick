@@ -68,3 +68,29 @@
   border-radius: 5px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
+
+.remove-button {
+  background: #e74c3c;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 14px;
+  margin-left: 12px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.remove-button:hover {
+  background: #c0392b;
+}
+
+.alt-select {
+  padding: 6px;
+  border-radius: 6px;
+  border: 2px solid #b290b9;
+  font-size: 14px;
+  margin-right: 10px;
+  background-color: #fff;
+  cursor: pointer;
+}

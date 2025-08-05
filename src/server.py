@@ -15,9 +15,16 @@ from datetime import datetime
 import smtplib
 from email.mime.text import MIMEText
 from apscheduler.schedulers.background import BackgroundScheduler
+from src.cloud.ContinuousSuperMarketDownloader import download_all_branches
+from src.cloud.SuperMarketUploader import SupermarketUploader
+from src.cloud.InitialSuperMarketDownloader import download_initial_supermarket_data
+from src.recommender.TaxonomyUpdater import update_taxonomies
+from src.recommender.UserModel import cluster_all_users
+from src.recommender.HybridRecommender import generate_recommendations
 import pytz
 from dotenv import load_dotenv
 load_dotenv()  # this loads variables from .env into os.environ
+from src.nlp.recipe_api import match_api
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -907,6 +914,62 @@ def get_users():
 
 
 # Price Drop Alerts
+# Create a new price drop alert
+@app.route('/api/user-alerts')
+def get_user_alerts():
+    user_id = request.args.get('user_id')
+    if not user_id:
+        return jsonify([])  # Return empty if no user
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    # Join user_lists to get list name, date, etc.
+    cursor.execute('''
+        SELECT a.id, a.list_id, a.created_at, a.threshold_percent, l.list_name
+        FROM price_drop_alerts a
+        LEFT JOIN user_lists l ON a.list_id = l.id
+        WHERE a.user_id = %s
+        ORDER BY a.created_at DESC
+    ''', (user_id,))
+    results = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return jsonify(results)
+
+# Delete a price drop alert
+@app.route('/api/delete-alert/<int:alert_id>', methods=['DELETE'])
+def delete_alert(alert_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM price_drop_alerts WHERE id = %s", (alert_id,))
+    conn.commit()
+    success = cursor.rowcount > 0
+    cursor.close()
+    conn.close()
+    return jsonify({"success": success})
+
+# Update an existing price drop alert
+@app.route('/api/update-alert-threshold', methods=['POST'])
+def update_alert_threshold():
+    data = request.get_json()
+    alert_id = data.get("alert_id")
+    new_threshold = data.get("threshold_percent")
+    if not alert_id or not new_threshold:
+        return jsonify({"success": False, "error": "Missing data"}), 400
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE price_drop_alerts SET threshold_percent = %s WHERE id = %s",
+        (new_threshold, alert_id)
+    )
+    conn.commit()
+    success = cursor.rowcount > 0
+    cursor.close()
+    conn.close()
+    return jsonify({"success": success})
+	
+	
 def send_email(to_email, subject, html_body, text_body=None):
     msg = MIMEMultipart("alternative")
     msg['Subject'] = subject
@@ -1128,10 +1191,12 @@ def check_price_drops():
                     </thead>
                     <tbody>
                         {''.join(
-                            f"<tr><td style='padding:8px'>{p['name']}</td>"
+                            f"<tr>"
+                            f"<td style='padding:8px'>{p['name']}</td>"
                             f"<td style='padding:8px'>{p['quantity']}</td>"
-                            f"<td style='padding:8px'>{'❌ חסר בחנות' if p['missing'] else f'{p['price']:.2f} ₪'}</td>"
-                            f"<td style='padding:8px'>{'' if p['missing'] else f'{p['total']:.2f} ₪'}</td></tr>"
+                            f"<td style='padding:8px'>{'❌ חסר בחנות' if p['missing'] else format(p['price'], '.2f') + ' ₪'}</td>"
+                            f"<td style='padding:8px'>{'' if p['missing'] else format(p['total'], '.2f') + ' ₪'}</td>"
+                            f"</tr>"
                             for p in products
                         )}
                     </tbody>
@@ -1166,9 +1231,39 @@ def start_scheduler():
     scheduler = BackgroundScheduler(timezone=pytz.timezone("Asia/Jerusalem"))
     # Schedule for 7:00 AM and 7:00 PM
     scheduler.add_job(check_price_drops, 'cron', hour=7, minute=0)
-    scheduler.add_job(check_price_drops, 'cron', hour=14, minute=20)
+    scheduler.add_job(check_price_drops, 'cron', hour=16, minute=51)
+
+    # Initial supermarket data download: once a month (1st) at 03:00 
+    scheduler.add_job(lambda: (download_initial_supermarket_data() or print("Finished: Initial supermarket data download")), 'cron', day=1, hour=3, minute=0)
+    # Download all branches: every 4 hours 
+    scheduler.add_job(lambda: (download_all_branches() or print("Finished: Download all branches")), 'cron', hour='0,4,8,12,16,20', minute=0)
+    # Upload Prices: every 4 hours, 1 hour after download 
+    scheduler.add_job(lambda: (SupermarketUploader("Prices") or print("Finished: Upload Prices")), 'cron', hour='1,5,9,13,17,21', minute=0)
+    # Upload PricesFull: once a month (2nd) at 03:00 
+    scheduler.add_job(lambda: (SupermarketUploader("PricesFull") or print("Finished: Upload PricesFull")), 'cron', day='2', hour=3, minute=0)
+
+    # Update taxonomies: every day at 02:00
+    scheduler.add_job(lambda: (update_taxonomies() or print("Finished: Update Taxonomies")), 'cron', hour=2, minute=0)
+    # Cluster all users: every day at 03:00
+    scheduler.add_job(lambda: (cluster_all_users() or print("Finished: cluster_all_users")), 'cron', hour=3, minute=0)
+
     scheduler.start()
     print("🔔 Price drop scheduler started!")
+
+# API Route: Get item recommendations for a user
+@app.route('/api/recommend-items', methods=['GET'])
+def recommend_items_api():
+    user_id = request.args.get('user_id')
+    print("Start generating recommendations for user:", user_id)
+    if not user_id:
+        return jsonify({'error': 'Missing user_id'}), 400
+    try:
+        # Replace with actual logic from HybridRecommender.py
+        rec_items = generate_recommendations(user_id)  # should return a list of item_codes or full products
+        return jsonify(rec_items)
+    except Exception as e:
+        print("Recommendation error:", e)
+        return jsonify({'error': str(e)}), 500
 
 # --- Flask routes below as normal ---
 @app.route('/api/subscribe-to-price-drop', methods=['POST'])
@@ -1210,6 +1305,7 @@ def subscribe_to_price_drop():
 
 if __name__ == "__main__":
     start_scheduler()
+    app.register_blueprint(match_api)
     app.run(host="0.0.0.0", port=5000, debug=True)
 
 

@@ -4,7 +4,6 @@ import "./InputRecipe.css";
 import matchIngredientsToProducts from "../../context/matchIngredientsToProducts";
 import Footer from "../Footer";
 import { CartContext } from "../../context/CartContext";
-import stringSimilarity from "string-similarity";
 import Recipes from "../../components/Recipes";
 
 const InputRecipe = () => {
@@ -14,7 +13,6 @@ const InputRecipe = () => {
   const navigate = useNavigate();
   const { setCartItems } = useContext(CartContext);
 
-  // Load products from DB
   useEffect(() => {
     const fetchProducts = async () => {
       try {
@@ -22,125 +20,61 @@ const InputRecipe = () => {
         const data = await res.json();
         setProducts(data);
       } catch (err) {
-        console.error("❌ Failed to load products:", err);
+        console.error("Failed to load products:", err);
         setProducts([]);
       }
     };
     fetchProducts();
   }, []);
 
-  // Food-related categories only!
-  const foodCategories = [
-    "מזון יבש",
-    "מוצרי חלב",
-    "בשר",
-    "פירות וירקות",
-    "מאפים",
-    "משקאות",
-    "דגנים",
-    "קפואים",
-    "טבעוני",
-    "מוצרי קירור",
-  ];
-
-  const filteredProducts = products.filter(
-    (p) =>
-      p &&
-      p.item_name &&
-      foodCategories.some((cat) => (p.category || "").includes(cat))
-  );
-
-  // When user clicks "צור רשימת קניות"
-  const handleGenerateList = () => {
-    if (!Array.isArray(filteredProducts) || filteredProducts.length === 0) {
-      console.error("Products data is not available");
-      return;
+  const handleGenerateList = async () => {
+    if (!recipeText.trim()) return;
+    try {
+      const matchedItems = await matchIngredientsToProducts(recipeText);
+      setShoppingList(matchedItems);
+    } catch (error) {
+      console.error("Failed to generate shopping list:", error);
+      setShoppingList([]);
     }
-    const matchedItems = matchIngredientsToProducts(
-      recipeText,
-      filteredProducts
-    );
-    setShoppingList(matchedItems);
   };
 
-  // Find the closest product using string similarity (and price if ties)
-  const getBestProductMatch = (ingredientName, foodProducts) => {
-    if (!ingredientName) return null;
-    const normalizedIng = ingredientName.trim().toLowerCase();
+  const handleRemoveItem = (indexToRemove) => {
+    setShoppingList((prev) => prev.filter((_, i) => i !== indexToRemove));
+  };
 
-    // 1. Exact match
-    let exact = foodProducts.find(
-      (p) => p.item_name.trim().toLowerCase() === normalizedIng
-    );
-    if (exact) return exact;
-
-    // 2. Starts with (strong candidate, AND must be <= 2 tokens for generic ingredients)
-    let startsWith = foodProducts.find((p) => {
-      const prodName = p.item_name.trim().toLowerCase();
-      if (prodName.startsWith(normalizedIng)) {
-        if (normalizedIng.length <= 4) {
-          // Very short generic ingredient: match only short names
-          return prodName.split(" ").length <= 2;
-        }
-        return true;
+  const handleAlternativeSelect = (index, selectedBarcode) => {
+    setShoppingList((prevList) => {
+      const newList = [...prevList];
+      const selectedOption = newList[index].options.find(
+        (opt) => opt.barcode === selectedBarcode
+      );
+      if (selectedOption) {
+        newList[index] = {
+          ...newList[index],
+          name: selectedOption.product,
+          matched_product: selectedOption.product,
+          barcode: selectedOption.barcode,
+          unit: selectedOption.unit,
+          manufacturer: selectedOption.manufacturer,
+        };
       }
-      return false;
+      return newList;
     });
-    if (startsWith) return startsWith;
-
-    // 3. All tokens required
-    const tokens = normalizedIng.split(/\s+/);
-    let allTokens = foodProducts.find((p) =>
-      tokens.every((tok) => p.item_name.toLowerCase().includes(tok))
-    );
-    if (allTokens) {
-      // For generic ingredient, only short product names
-      if (
-        normalizedIng.length <= 4 &&
-        allTokens.item_name.split(" ").length > 2
-      )
-        return null;
-      return allTokens;
-    }
-
-    // 4. String similarity (threshold >= 0.75 for generic, >= 0.6 otherwise)
-    const candidates = foodProducts.map((p) => p.item_name);
-    const { bestMatch, bestMatchIndex } = stringSimilarity.findBestMatch(
-      normalizedIng,
-      candidates
-    );
-    const minThreshold = normalizedIng.length <= 4 ? 0.75 : 0.6;
-    if (bestMatch.rating > minThreshold && foodProducts[bestMatchIndex]) {
-      // Again, short names only for generic
-      if (
-        normalizedIng.length <= 4 &&
-        foodProducts[bestMatchIndex].item_name.split(" ").length > 2
-      )
-        return null;
-      return foodProducts[bestMatchIndex];
-    }
-
-    // 5. Nothing found
-    return null;
   };
 
-  // When user clicks "חפש בסופר"
   const handleSearchSupermarket = () => {
     const cart = shoppingList
-      .map((recipeItem) => {
-        const match = getBestProductMatch(recipeItem.name, filteredProducts);
-        if (match) {
-          return {
-            id: match.item_code,
-            name: match.item_name,
-            quantity: recipeItem.quantity,
-            unit: recipeItem.unit,
-            image: match.image_url || "",
-          };
-        }
-        return null;
-      })
-      .filter(Boolean);
+      .filter((item) => item.barcode && item.matched_product !== null)
+      .map((item) => {
+        const product = products.find((p) => p.item_code === item.barcode);
+        return {
+          id: item.barcode,
+          name: item.name || item.matched_product || "מוצר לא מזוהה",
+          quantity: item.quantity || 1,
+          unit: item.unit || "",
+          image: product?.image_url || "",
+        };
+      });
 
     setCartItems(cart);
     navigate("/Address");
@@ -153,7 +87,7 @@ const InputRecipe = () => {
   return (
     <>
       <div className="recipe-container">
-        <h1 className="recipe-title"> 🥣 הכנס מתכון</h1>
+        <h1 className="recipe-title">🥣 הכנס מתכון</h1>
         <textarea
           className="recipe-input"
           value={recipeText}
@@ -174,17 +108,98 @@ const InputRecipe = () => {
           <div className="shopping-list">
             <h3>:רשימת הקניות שלך</h3>
             <ul>
-              {shoppingList.map((item, index) => (
-                <li key={index}>
-                  {item.name} - {item.quantity} {item.unit}
-                </li>
-              ))}
+              {shoppingList.map((item, index) => {
+                const isUnmatched = item.matched_product === null;
+
+                return (
+                  <li key={index} style={{ color: isUnmatched ? "red" : "black" }}>
+                    {isUnmatched ? (
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "row-reverse",
+                          justifyContent: "space-between",
+                          width: "100%",
+                          alignItems: "center",
+                        }}
+                      >
+                        <div>
+                          לא נמצא מוצר תואם עבור{" "}
+                          <strong>{item.ingredient || item.original_line}</strong>
+                        </div>
+                        <button
+                          className="remove-button"
+                          onClick={() => handleRemoveItem(index)}
+                          style={{ marginRight: "12px" }}
+                        >
+                          הסר מהרשימה
+                        </button>
+                      </div>
+                    ) : (
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "flex-start",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            flexDirection: "row-reverse",
+                            justifyContent: "space-between",
+                            width: "100%",
+                            alignItems: "center",
+                          }}
+                        >
+                          <div>
+                            <strong>{item.name || item.matched_product}</strong> -{" "}
+                            {item.quantity || "1"} {item.unit || ""}
+                          </div>
+                          <button
+                            className="remove-button"
+                            onClick={() => handleRemoveItem(index)}
+                            style={{ marginRight: "12px" }}
+                          >
+                            הסר
+                          </button>
+                        </div>
+
+                        {item.options?.length > 0 && (
+                          <select
+                            className="alt-select"
+                            onChange={(e) =>
+                              handleAlternativeSelect(index, e.target.value)
+                            }
+                            value=""
+                            style={{ marginTop: "8px", width: "100%" }}
+                            dir="rtl"
+                          >
+                            <option disabled value="">
+                              בחר מוצר חלופי
+                            </option>
+                            {item.options.map((opt, i) => (
+                              <option
+                                key={i}
+                                value={opt.barcode}
+                                disabled={opt.barcode === item.barcode}
+                              >
+                                {opt.product} ({opt.unit}) - התאמה:{" "}
+                                {opt.confidence.toFixed(2)}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </div>
         )}
       </div>
       <Recipes onRecipeSelect={handleRecipeSelect} />
-
       <Footer />
     </>
   );

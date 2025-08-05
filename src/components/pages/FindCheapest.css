@@ -430,3 +430,70 @@
     transform: rotate(360deg);
   }
 }
+.recommend-top-fab {
+  position: fixed;
+  top: 130px;
+  right: 32px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #f4c8ff;
+  color: #3a1e4d;
+  font-size: 1.4rem;
+  font-weight: 700;
+  border: none;
+  border-radius: 15px;
+  padding: 18px 30px 20px 20px;
+  box-shadow: 0 2px 12px #3a1e4d1a;
+  cursor: pointer;
+  z-index: 1100;
+  animation: cart-blink 2.2s infinite;
+  transition: background 0.3s, color 0.3s, box-shadow 0.3s;
+}
+
+.recommend-top-fab:hover {
+  background: #f7d9fd;
+  color: #442849;
+}
+
+.recommend-fab-label {
+  font-size: 1.17em;
+  font-weight: bold;
+  letter-spacing: 0.03em;
+  user-select: none;
+}
+
+/* Use the same blink animation as the cart */
+@keyframes cart-blink {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 #e7baf250;
+  }
+  50% {
+    opacity: 0.96;
+    box-shadow: 0 0 18px 10px #e7baf270;
+  }
+}
+
+.recommend-loader {
+  background: rgba(247, 233, 252, 0.85); /* lighter, magical overlay */
+  z-index: 2002;
+}
+.spinner-magic {
+  font-size: 2.8rem;
+  animation: magic-spin 1.1s infinite linear;
+  display: flex;
+  justify-content: center;
+}
+@keyframes magic-spin {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  70% {
+    transform: rotate(360deg) scale(1.18);
+  }
+  100% {
+    transform: rotate(0deg) scale(1);
+  }
+}

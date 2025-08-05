@@ -181,6 +181,7 @@ const FindCheapest = () => {
   const [selectedSearchProduct, setSelectedSearchProduct] = useState(null);
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isRecommending, setIsRecommending] = useState(false);
 
   const location = useLocation();
 
@@ -642,6 +643,48 @@ const FindCheapest = () => {
     }
   };
 
+  const handleRecommendProducts = async () => {
+    if (!user?.id) {
+      alert("עליך להיות מחובר כדי לקבל המלצות.");
+      return;
+    }
+    setIsRecommending(true);
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/recommend-items?user_id=${user.id}`
+      );
+      const recItems = await response.json();
+
+      if (!Array.isArray(recItems) || recItems.length === 0) {
+        alert("לא נמצאו המלצות עבורך.");
+        setIsRecommending(false);
+        return;
+      }
+
+      // If your API returns just item codes, map to product objects:
+      const recommendedProducts = products.filter(
+        (prod) =>
+          recItems.includes(prod.id) || recItems.includes(prod.item_code)
+      );
+
+      // Fill the cart:
+      const cart = recommendedProducts.map((prod) => ({
+        ...prod,
+        quantity: prod.category === "פירות וירקות" ? 0.5 : 1,
+        unit: prod.unit || "יח",
+      }));
+      setRawCartItems(cart);
+      setCartMessage("העגלה התמלאה בהמלצות 🎉");
+      setTimeout(() => setCartMessage(""), 2500);
+      setIsCartOpen(true); // Open cart sidebar
+    } catch (err) {
+      alert("שגיאה בקבלת המלצות.");
+      console.error(err);
+    } finally {
+      setIsRecommending(false);
+    }
+  };
+
   return (
     <>
       {isLoading && (
@@ -678,6 +721,26 @@ const FindCheapest = () => {
             ▶
           </button>
         </div>
+
+        {/* Recommend Products Floating Button at Top */}
+        <button className="recommend-top-fab" onClick={handleRecommendProducts}>
+          🪄 <span className="recommend-fab-label">סל מומלץ</span>
+          {isRecommending && (
+            <div className="loading-overlay recommend-loader">
+              <div className="spinner-magic">✨</div>
+              <div
+                style={{
+                  marginTop: 14,
+                  color: "#3a1e4d",
+                  fontWeight: 600,
+                  fontSize: "1.2em",
+                }}
+              >
+                ...מלקט המלצות חכמות עבורך
+              </div>
+            </div>
+          )}
+        </button>
 
         {/* Shopping Cart Button */}
         {!isCartOpen && (

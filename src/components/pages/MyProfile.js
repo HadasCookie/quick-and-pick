@@ -41,7 +41,65 @@ const MyProfile = () => {
   const [notificationThreshold, setNotificationThreshold] = useState(5);
   useState("");
   const [listPrice, setListPrice] = useState(null);
-  const [alertsTab, setAlertsTab] = useState("new"); // "new" or "existing"
+  const [alerts, setAlerts] = useState([]);
+  const [alertsTab, setAlertsTab] = useState("new");
+
+  useEffect(() => {
+    if (alertsTab === "existing" && user && user.id) {
+      fetch(`http://localhost:5000/api/user-alerts?user_id=${user.id}`)
+        .then((res) => res.json())
+        .then((data) => setAlerts(data || []));
+    }
+  }, [alertsTab, user]);
+
+  function handleDeleteAlert(alertId) {
+    if (window.confirm("אתה בטוח שברצונך למחוק את ההתראה?")) {
+      fetch(`http://localhost:5000/api/delete-alert/${alertId}`, {
+        method: "DELETE",
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success) {
+            setAlerts(alerts.filter((a) => a.id !== alertId));
+          } else {
+            alert("שגיאה במחיקה");
+          }
+        });
+    }
+  }
+
+  function handleUpdateThreshold(alertId, newValue) {
+    fetch("http://localhost:5000/api/update-alert-threshold", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ alert_id: alertId, threshold_percent: newValue }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          alert("התראה עודכנה בהצלחה!");
+          setAlerts(
+            alerts.map((alert) =>
+              alert.id === alertId
+                ? { ...alert, threshold_percent: newValue }
+                : alert
+            )
+          );
+        } else {
+          alert("שגיאה בעדכון");
+        }
+      });
+  }
+
+  function formatDate(dt) {
+    // dt is ISO string
+    if (!dt) return "";
+    return new Date(dt).toLocaleDateString("he-IL", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  }
 
   const handleSubscribe = async (list) => {
     try {
@@ -888,7 +946,22 @@ const MyProfile = () => {
                                   className="profile-btn"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleSubscribe(list);
+                                    setActiveTab("alerts");
+                                    setAlertsTab("new");
+                                    setNotificationListName(
+                                      list.list_name || `רשימה #${list.id}`
+                                    );
+                                    setNotificationListId(list.id);
+                                    setListPrice(list.total_price || null);
+                                    setNotificationThreshold(5); // or your preferred default
+                                    setTimeout(() => {
+                                      const alertsSection =
+                                        document.querySelector(".alerts-pane");
+                                      if (alertsSection)
+                                        alertsSection.scrollIntoView({
+                                          behavior: "smooth",
+                                        });
+                                    }, 200);
                                   }}
                                 >
                                   📩 קבל עדכון ירידת מחיר
@@ -1097,6 +1170,7 @@ const MyProfile = () => {
                       )}
                     </div>
                   </div>
+
                   {/* Existing Alerts Accordion */}
                   <div
                     className={`alerts-accordion-item ${
@@ -1122,13 +1196,62 @@ const MyProfile = () => {
                       }}
                     >
                       {alertsTab === "existing" && (
-                        <div
-                          style={{ marginTop: "1.5em", textAlign: "center" }}
-                        >
-                          <h3>כל ההתראות שלך:</h3>
-                          <div style={{ color: "#562c72", margin: "1.2em 0" }}>
-                            אין עדיין התראות (כאן יוצגו ההתראות הפעילות שלך)
-                          </div>
+                        <div className="alerts-existing-alerts-container">
+                          {alerts.length === 0 ? (
+                            <div className="alerts-no-alerts">
+                              אין עדיין התראות (כאן יוצגו ההתראות הפעילות שלך)
+                            </div>
+                          ) : (
+                            <table className="alerts-table">
+                              <thead>
+                                <tr className="alerts-table-header">
+                                  <th>רשימה</th>
+                                  <th>תאריך</th>
+                                  <th>אחוז</th>
+                                  <th>פעולות</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {alerts.map((alert) => (
+                                  <tr
+                                    key={alert.id}
+                                    className="alerts-table-row"
+                                  >
+                                    <td>{alert.list_name}</td>
+                                    <td>{formatDate(alert.created_at)}</td>
+                                    <td>
+                                      <select
+                                        value={alert.threshold_percent}
+                                        onChange={(e) =>
+                                          handleUpdateThreshold(
+                                            alert.id,
+                                            e.target.value
+                                          )
+                                        }
+                                        className="alerts-threshold-select"
+                                      >
+                                        {[5, 10, 20].map((opt) => (
+                                          <option key={opt} value={opt}>
+                                            {opt}%
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </td>
+                                    <td>
+                                      <button
+                                        onClick={() =>
+                                          handleDeleteAlert(alert.id)
+                                        }
+                                        className="alerts-delete-btn"
+                                      >
+                                        מחק
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          )}
                         </div>
                       )}
                     </div>
