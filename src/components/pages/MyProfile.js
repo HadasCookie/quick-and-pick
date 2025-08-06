@@ -18,7 +18,8 @@ const MyProfile = () => {
   const [passwordMessage, setPasswordMessage] = useState("");
   const [lists, setLists] = useState([]);
   const [currentPage, setCurrentPage] = useState(0);
-  const { userLists, setCurrentList } = useContext(ListsContext);
+  const { userLists, setCurrentList, fetchUserLists } =
+    useContext(ListsContext);
   const [activeListId, setActiveListId] = useState(null);
 
   const [preferences, setPreferences] = useState({});
@@ -730,18 +731,37 @@ const MyProfile = () => {
                                       );
 
                                       if (response.ok) {
-                                        const updated = lists.map((l) =>
-                                          l.id === list.id
-                                            ? { ...l, list_name: newName }
-                                            : l
+                                        // Update the lists immediately
+                                        const updatedLists = userLists.map(
+                                          (l) =>
+                                            l.id === list.id
+                                              ? {
+                                                  ...l,
+                                                  list_name: newName,
+                                                  is_favorite: 1,
+                                                }
+                                              : l
                                         );
-                                        setLists(sortLists(userLists));
+
+                                        // Update context and local state
+                                        await fetchUserLists(user.id);
+                                        setLists(sortLists(updatedLists));
+
+                                        // Show success message
+                                        setCartMessage(
+                                          `✅ שם הרשימה עודכן ל"${newName}" ונוספה למועדפים`
+                                        );
+                                        setTimeout(
+                                          () => setCartMessage(""),
+                                          3000
+                                        );
                                       }
                                     } catch (err) {
                                       console.error(
                                         "Failed to update list name:",
                                         err
                                       );
+                                      alert("❌ שגיאה בעדכון שם הרשימה");
                                     }
                                   }
                                 }}
@@ -779,22 +799,18 @@ const MyProfile = () => {
                                     );
 
                                     if (response.ok) {
-                                      const updated = [...lists].map((l) =>
+                                      // Update the lists immediately
+                                      const updatedLists = userLists.map((l) =>
                                         l.id === list.id
                                           ? { ...l, is_favorite: updatedStatus }
                                           : l
                                       );
 
-                                      // Sort: favorites first, then by ID
-                                      updated.sort((a, b) => {
-                                        if (a.is_favorite === b.is_favorite)
-                                          return a.id - b.id;
-                                        return b.is_favorite - a.is_favorite;
-                                      });
+                                      // Update context and local state
+                                      await fetchUserLists(user.id);
+                                      setLists(sortLists(updatedLists));
 
-                                      setLists(sortLists(userLists));
-
-                                      // ⭐⭐ Add the notification message here ⭐⭐
+                                      // Add the notification message
                                       const listName =
                                         list.list_name || `רשימה #${list.id}`;
                                       if (updatedStatus === 1) {
@@ -816,6 +832,7 @@ const MyProfile = () => {
                                       "Failed to update favorite:",
                                       error
                                     );
+                                    alert("❌ שגיאה בעדכון המועדפים");
                                   }
                                 }}
                                 title="הוסף למועדפים"

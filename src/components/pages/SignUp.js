@@ -35,6 +35,7 @@ const SignUp = () => {
   });
 
   const [message, setMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -53,6 +54,23 @@ const SignUp = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsLoading(true);
+    setMessage("");
+
+    // Client-side validation
+    if (formData.password !== formData.confirmPassword) {
+      setMessage("הסיסמאות אינן תואמות ❌");
+      setIsLoading(false);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      setMessage("הסיסמה חייבת להכיל לפחות 6 תווים ❌");
+      setIsLoading(false);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
 
     try {
       const response = await fetch("http://localhost:5000/api/register", {
@@ -64,18 +82,27 @@ const SignUp = () => {
       const result = await response.json();
 
       if (response.status === 409) {
-        setMessage("האימייל כבר קיים במערכת ❌");
+        // Duplicate email error
+        setMessage(
+          "❌ האימייל כבר קיים במערכת. אנא השתמש באימייל אחר או התחבר לחשבון הקיים."
+        );
+        window.scrollTo({ top: 0, behavior: "smooth" });
       } else if (response.status === 400) {
-        setMessage("נא למלא את כל השדות החיוניים 🛑");
+        setMessage("❌ נא למלא את כל השדות החיוניים");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } else if (response.status === 500) {
+        setMessage("❌ שגיאה בשרת. אנא נסה שוב מאוחר יותר");
+        alert("❌ שגיאה בשרת. אנא נסה שוב מאוחר יותר");
+        window.scrollTo({ top: 0, behavior: "smooth" });
       } else if (response.ok) {
-        // ✅ Use the user object returned from backend
+        // ✅ Success
         if (result.user) {
           localStorage.setItem("user", JSON.stringify(result.user));
           setUser(result.user);
         }
 
-        alert("משתמש נרשם בהצלחה!");
-        setMessage("!משתמש נרשם בהצלחה");
+        setMessage("✅ משתמש נרשם בהצלחה!");
+        alert("🎉 ברוך הבא ל-Quick&Pick!\nההרשמה הושלמה בהצלחה!");
 
         // Reset form fields
         setFormData({
@@ -106,11 +133,17 @@ const SignUp = () => {
 
         navigate("/MyProfile");
       } else {
-        setMessage(result.error || "שגיאה לא צפויה. אנא נסה שוב.");
+        setMessage(result.error || "❌ שגיאה לא צפויה. אנא נסה שוב");
+        alert(result.error || "❌ שגיאה לא צפויה. אנא נסה שוב");
+        window.scrollTo({ top: 0, behavior: "smooth" });
       }
     } catch (error) {
-      setMessage("שגיאה בחיבור לשרת. אנא נסה שוב.");
+      setMessage("❌ שגיאה בחיבור לשרת. בדוק את החיבור לאינטרנט ונסה שוב");
+      alert("❌ שגיאה בחיבור לשרת\n\nבדוק את החיבור לאינטרנט ונסה שוב");
       console.error("❌ Fetch error:", error);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -118,7 +151,15 @@ const SignUp = () => {
     <>
       <div className="container">
         <h2>הרשמה</h2>
-        {message && <p className="message">{message}</p>}
+        {message && (
+          <p
+            className={`message ${
+              message.includes("❌") ? "error" : "success"
+            }`}
+          >
+            {message}
+          </p>
+        )}
         <form onSubmit={handleSubmit}>
           <div className="label-input-container">
             <input
@@ -339,8 +380,8 @@ const SignUp = () => {
             </label>
           </div>
 
-          <button type="submit" className="button">
-            הירשם
+          <button type="submit" className="button" disabled={isLoading}>
+            {isLoading ? "מעבד הרשמה..." : "הירשם"}
           </button>
         </form>
       </div>

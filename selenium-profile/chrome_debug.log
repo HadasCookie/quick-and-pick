@@ -1,0 +1,54 @@
+[13921:161181:0806/234335.168489:INFO:components/enterprise/browser/controller/chrome_browser_cloud_management_controller.cc:202] No machine level policy manager exists.
+[13921:161181:0806/234335.904691:INFO:CONSOLE:35215] "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold", source: http://localhost:3000/static/js/bundle.js (35215)
+[13921:161181:0806/234335.920747:INFO:CONSOLE:23182] "In HTML, %s cannot be a descendant of <%s>.
+This will cause a hydration error.%s <a> a 
+
+  ...
+    <CartProvider>
+      <BrowserRouter>
+        <Router basename={undefined} location={{pathname:"/", ...}} navigationType="POP" navigator={{action:"POP", ...}}>
+          <NavBar>
+          <ScrollToTop>
+          <Routes>
+            <RenderedRoute match={{params:{}, ...}} routeContext={{outlet:null, ...}}>
+              <Home>
+                <HeroSection>
+                  <div className="hero-conta...">
+                    <video>
+                    <h1>
+                    <p>
+                    <div className="hero-btns">
+                      <LinkWithRef to="/MyProfile" className="log-in-text">
+>                       <a
+>                         className="log-in-text"
+>                         href="/MyProfile"
+>                         onClick={function handleClick}
+>                         ref={function}
+>                         target={undefined}
+>                         data-discover="true"
+>                       >
+                          <Button className="btns" buttonStyle="btn--outline" buttonSize="btn--large" ...>
+                            <LinkWithRef to="/MyProfile" className="btn-mobile">
+>                             <a
+>                               className="btn-mobile"
+>                               href="/MyProfile"
+>                               onClick={function handleClick}
+>                               ref={function}
+>                               target={undefined}
+>                               data-discover="true"
+>                             >
+                      ...
+                    ...
+                ...
+", source: http://localhost:3000/static/js/bundle.js (23182)
+[13921:161181:0806/234336.084427:INFO:CONSOLE:78] "As of March 1st, 2025, google.maps.places.Autocomplete is not available to new customers. Please use google.maps.places.PlaceAutocompleteElement instead. At this time, google.maps.places.Autocomplete is not scheduled to be discontinued, but google.maps.places.PlaceAutocompleteElement is recommended over google.maps.places.Autocomplete. While google.maps.places.Autocomplete will continue to receive bug fixes for any major regressions, existing bugs in google.maps.places.Autocomplete will not be addressed. At least 12 months notice will be given before support is discontinued. Please see https://developers.google.com/maps/legacy for additional details and https://developers.google.com/maps/documentation/javascript/places-migration-overview for the migration guide.", source: https://maps.googleapis.com/maps-api-v3/api/js/61/12c/intl/iw_ALL/places.js (78)
+[13921:161181:0806/234336.714410:INFO:CONSOLE:54953] "Geocode response: [object Object]", source: http://localhost:3000/static/js/bundle.js (54953)
+[13921:161181:0806/234337.943552:INFO:CONSOLE:55001] " Current user preferences: [object Object]", source: http://localhost:3000/static/js/bundle.js (55001)
+[13921:161181:0806/234337.943652:INFO:CONSOLE:55002] " Current user supermarket attributes: [object Object]", source: http://localhost:3000/static/js/bundle.js (55002)
+[13921:161181:0806/234337.943675:INFO:CONSOLE:55003] " Current list:  null", source: http://localhost:3000/static/js/bundle.js (55003)
+[13921:161181:0806/234337.992505:INFO:CONSOLE:56421] "Error fetching user preferences: SyntaxError: Unexpected token '<', "<!doctype "... is not valid JSON", source: http://localhost:3000/static/js/bundle.js (56421)
+[13921:161222:0806/234338.608671:ERROR:google_apis/gcm/engine/registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT
+[13926:161241:0806/234341.351426:ERROR:gpu/command_buffer/service/shared_image/shared_image_manager.cc:472] SharedImageManager::ProduceOverlay: Trying to Produce a Overlay representation from a non-existent mailbox.
+[13926:161241:0806/234341.351527:ERROR:components/viz/service/display_embedder/skia_output_device_buffer_queue.cc:263] Invalid mailbox.
+[13927:161279:0806/234341.379706:WARNING:net/extras/sqlite/sqlite_persistent_store_backend_base.cc:176] Failed to post task from FlushAndNotifyInBackground@net/extras/sqlite/sqlite_persistent_store_backend_base.cc:226 to client_task_runner_.
+[13927:161279:0806/234341.379945:WARNING:net/extras/sqlite/sqlite_persistent_store_backend_base.cc:176] Failed to post task from FlushAndNotifyInBackground@net/extras/sqlite/sqlite_persistent_store_backend_base.cc:226 to client_task_runner_.

@@ -19,7 +19,7 @@ from src.cloud.ContinuousSuperMarketDownloader import download_all_branches
 from src.cloud.SuperMarketUploader import SupermarketUploader
 from src.cloud.InitialSuperMarketDownloader import download_initial_supermarket_data
 from src.recommender.TaxonomyUpdater import update_taxonomies
-from src.recommender.UserModel import cluster_all_users
+from src.recommender.UserModel import cluster_all_users,assign_cluster_for_new_user, user_has_cluster
 from src.recommender.HybridRecommender import generate_recommendations
 import pytz
 from dotenv import load_dotenv
@@ -29,7 +29,6 @@ from src.nlp.recipe_api import match_api
 # Initialize Flask app
 app = Flask(__name__)
 CORS(app)  # Allow requests from React frontend
-chatbot = pipeline('text2text-generation', model='google/flan-t5-small')
 
 # Database Configuration
 DB_HOST = "34.78.145.126"
@@ -42,7 +41,7 @@ SMTP_PASS = os.getenv("SMTP_PASS")
 SMTP_SERVER = os.getenv("SMTP_SERVER")
 SMTP_PORT = int(os.getenv("SMTP_PORT", 587))  # Default to 587 if not set
 
-# ✅ API Endpoints
+# API Endpoints
 FOODS_DICTIONARY_URL = "https://www.foodsdictionary.co.il/services/c/getSuggestions.php"
 CHP_AUTOCOMPLETE_URL = "https://chp.co.il/autocompletion/product_extended"
 
@@ -95,21 +94,8 @@ def send_list_sms():
         print("❌ SMS error:", e)
         return jsonify({"error": f"Failed to send SMS: {str(e)}"}), 500
 
-@app.route("/chat", methods=["POST"])
-def chat():
-    data = request.get_json()
-    user_input = data.get("message")
 
-    if not user_input:
-        return jsonify({"error": "No input provided"}), 400
-
-    # ✅ Correct call to the pipeline
-    bot_output = chatbot(user_input, max_length=100, do_sample=True)
-
-    # ✅ Return the generated text
-    return jsonify({"response": bot_output[0]['generated_text']})
-
-# ✅ Fetch suggestions from FoodsDictionary
+# Fetch suggestions from FoodsDictionary
 def fetch_suggestions_fd(search_term, page=1):
     """Fetch product suggestions from FoodsDictionary."""
     params = {
@@ -127,7 +113,7 @@ def fetch_suggestions_fd(search_term, page=1):
     except requests.RequestException as e:
         return {"error": str(e)}
 
-# ✅ Fetch suggestions from CHP Autocomplete API
+# Fetch suggestions from CHP Autocomplete API
 def fetch_suggestions_chp(search_term):
     """Fetch product suggestions from CHP autocomplete API."""
     params = {
@@ -152,7 +138,7 @@ def fetch_suggestions_chp(search_term):
     except requests.RequestException as e:
         return {"error": str(e)}
 
-# ✅ API Route: Get suggestions from selected source
+# API Route: Get suggestions from selected source
 @app.route("/api/suggestions", methods=["GET"])
 def get_suggestions():
     """API endpoint for fetching product suggestions."""
@@ -452,8 +438,7 @@ def register_user():
     try:
         data = request.json
         print("Received Data:", data)
-
-        # --- קבלת נתונים מהקליינט
+        # Extract user data from request
         first_name = data.get("first_name")
         last_name = data.get("last_name")
         email = data.get("email")
@@ -506,19 +491,19 @@ def register_user():
             "user": full_user
         }), 201    
 
-    except pymysql.Error as e:
+    except mysql.connector.Error as e:
         print("❌ Database Error:", e)
-        if e.args[0] == 1062:
-            return jsonify({"error": "Email already exists"}), 409
-        return jsonify({"error": "Database error"}), 500
+        if e.errno == 1062:  # Duplicate entry error
+            return jsonify({"error": "האימייל כבר קיים במערכת"}), 409
+        return jsonify({"error": "שגיאת מסד נתונים"}), 500
 
     except Exception as e:
         print("❌ Unexpected Error:", e)
-        return jsonify({"error": "Internal Server Error"}), 500
+        return jsonify({"error": "שגיאה פנימית בשרת"}), 500
 
     finally:
         try:
-            if conn.open:
+            if 'conn' in locals() and conn.is_connected():
                 cursor.close()
                 conn.close()
         except:
@@ -969,7 +954,6 @@ def update_alert_threshold():
     conn.close()
     return jsonify({"success": success})
 	
-	
 def send_email(to_email, subject, html_body, text_body=None):
     msg = MIMEMultipart("alternative")
     msg['Subject'] = subject
@@ -1022,7 +1006,7 @@ def get_best_list_offer(list_id):
             )) <= %s
     """, (lat, lng, lat, radius))
     stores = cursor.fetchall()
-    print("Nearby stores found:", stores)
+    print("Nearby stores found:", len(stores))
     if not stores:
         cursor.close()
         conn.close()
@@ -1044,16 +1028,24 @@ def get_best_list_offer(list_id):
         items = cursor.fetchall()
         store_prices = {i["item_code"]: float(i["item_price"]) for i in items}
         match_ratio = len(store_prices) / len(products)
-        if match_ratio < 0.7:  # Only consider supermarkets with at least 70% product match
+        
+        print(f"Store {store_id}: Found {len(store_prices)} out of {len(products)} products, match ratio: {match_ratio:.2f}")
+        
+        # Lower the minimum match ratio to 0.6 (60%) for price alerts
+        if match_ratio < 0.6:
+            print(f"Skipping store {store_id} due to low match ratio: {match_ratio:.2f} (need 60%+ for price alerts)")
             continue
+            
         total = sum(
             store_prices.get(code, 0) * products[code].get("quantity", 1)
             for code in codes if code in store_prices
         )
+        
+        print(f"Store {store_id}: Total cost: {total:.2f}")
+        
         # Prepare full product details for the email
         product_details = []
         # Fetch product names from DB
-        codes = list(products.keys())
         code_to_info = {}
         if codes:
             placeholders = ", ".join(["%s"] * len(codes))
@@ -1062,7 +1054,8 @@ def get_best_list_offer(list_id):
                 codes,
             )
             code_to_info = {row["item_code"]: row for row in cursor.fetchall()}
-        # After you fetch products and build code_to_info...
+        
+        # Build product details
         for code in codes:
             qty = products[code].get("quantity", 1)
             price = store_prices.get(code)
@@ -1074,6 +1067,7 @@ def get_best_list_offer(list_id):
                 "total": (price or 0) * qty,
                 "missing": price is None
             })
+        
         # Save if best offer so far
         if not best_offer or total < best_offer["total_price"]:
             best_offer = {
@@ -1082,9 +1076,15 @@ def get_best_list_offer(list_id):
                 "match_ratio": match_ratio,
                 "products": product_details
             }
+            print(f"New best offer: Store {store_id} with price {total:.2f} and {match_ratio:.1%} match ratio")
+    
     cursor.close()
     conn.close()
-    return best_offer  # None if nothing found
+    if best_offer:
+        print(f"Final best offer: {best_offer['total_price']:.2f} ₪ with {best_offer['match_ratio']:.1%} product match")
+    else:
+        print("No valid offers found (need 60%+ product match for price alerts)")
+    return best_offer
 
 def check_price_drops():
     print("🔔 Running price drop check...", datetime.now())
@@ -1105,11 +1105,21 @@ def check_price_drops():
         threshold = alert["threshold_percent"]
         last_price = alert["last_notified_price"]
 
-        # NEW: Get the latest best offer!
+        # Get list details for list name
+        conn2 = get_db_connection()
+        cursor2 = conn2.cursor(dictionary=True)
+        cursor2.execute("SELECT list_name FROM user_lists WHERE id = %s", (list_id,))
+        list_data = cursor2.fetchone()
+        list_name = list_data["list_name"] if list_data else f"רשימה #{list_id}"
+        cursor2.close()
+        conn2.close()
+
+        # Get the latest best offer!
         offer = get_best_list_offer(list_id)
         print("Best offer found:", offer)
 
         if not offer:
+            print(f"No valid offer found for list {list_id}")
             continue  # No valid supermarket found
 
         current_price = offer["total_price"]
@@ -1117,7 +1127,7 @@ def check_price_drops():
         match_ratio = offer["match_ratio"]
         products = offer["products"]
 
-        # If this is the first notification, just set the price and skip
+        # If this is the first notification, just set the price and continue
         if last_price is None or last_price == 0:
             print(f"First notification for alert {alert_id}, setting last_notified_price to {current_price}")
             conn2 = get_db_connection()
@@ -1126,51 +1136,32 @@ def check_price_drops():
             conn2.commit()
             cursor2.close()
             conn2.close()
-            # continue
+            continue  # Skip sending email on first run
 
         # Compare to last notified price
         drop_percent = ((last_price - current_price) / last_price) * 100
         print(f"Price drop for alert {alert_id}: last={last_price}, current={current_price}, drop={drop_percent:.2f}%")
+        
         if drop_percent >= threshold:
-            # --- Prepare PRETTY HTML Email ---
-            brand_color = "#3a1e4d"
-            header_bg = "#f6e5fa"
-            accent = "#e7baf2"
-            text_color = "#1e1028"
-            button_bg = "#3a1e4d"
-            button_color = "#fff"
-
+            print(f"Triggering price drop alert! Drop: {drop_percent:.2f}% >= threshold: {threshold}%")
+            
+            # Get store details
             store_name = store.get("store_name", "")
             store_address = f'{store.get("address", "")}, {store.get("city", "")}'
             coverage = int(match_ratio * 100)
 
-            html_products = ""
-            for p in products:
-                if p["missing"]:
-                    html_products += f"""
-                        <tr>
-                            <td style="padding:8px; color:#888">{p['name'] if 'name' in p else ''}</td>
-                            <td style="padding:8px; color:#e74c3c;" colspan="2">❌ חסר בחנות</td>
-                        </tr>
-                    """
-                else:
-                    html_products += f"""
-                        <tr>
-                            <td style="padding:8px">{p['name'] if 'name' in p else ''}</td>
-                            <td style="padding:8px">{p['quantity']}</td>
-                            <td style="padding:8px">{p['price']:.2f} ₪</td>
-                            <td style="padding:8px">{p['total']:.2f} ₪</td>
-                        </tr>
-                    """
             email_body = f"""
             <html dir="rtl" lang="he">
             <body style="font-family: 'Arial', 'Helvetica Neue', Helvetica, sans-serif; background: #f6e5fa; color: #1e1028; padding: 50px 0 50px 0; margin: 0;">
                 <div style="max-width: 520px; margin: 0 auto; background: #fff; border-radius: 18px; box-shadow: 0 6px 24px #3a1e4d22;">
                 <div style="background: #3a1e4d; color: #fff; border-radius: 18px 18px 0 0; padding: 24px 32px 16px 32px; text-align: right;">
                     <h1 style="margin:0; font-size: 2.2em; text-align:center;">Quick&Pick</h1>
-                    <h2 style="margin:0; font-size: 1.3em; text-align:center;">🎉 ירידת !מחיר ברשימה שלך</h2>
+                    <h2 style="margin:0; font-size: 1.3em; text-align:center;">🎉 ירידת מחיר ברשימה שלך!</h2>
                 </div>
                 <div style="padding: 22px 32px; text-align: right;">
+                    <div style="background: #e7baf2; padding: 16px; border-radius: 10px; margin-bottom: 20px; text-align: center;">
+                        <h3 style="margin: 0; color: #3a1e4d; font-size: 1.4em;">📋 {list_name}</h3>
+                    </div>
                     <p style="font-size:1.1em; margin-top:0;">
                     <strong>מחיר הרשימה שלך ירד מ־{last_price:.2f} ל־{current_price:.2f} ₪</strong>
                     <span style="color:#3a1e4d; font-weight:bold;">({drop_percent:.1f}% ירידה!)</span>
@@ -1212,13 +1203,15 @@ def check_price_drops():
             </body>
             </html>
             """
+            
             # Send the email
-            print(f"📧 Sending price drop email to {email} for alert ID {alert_id} and {email_body}")
+            print(f"📧 Sending price drop email to {email} for alert ID {alert_id} and list '{list_name}'")
             send_email(
                 email,
-                "עדכון: ירידת מחיר ברשימה שלך!",
+                f"עדכון: ירידת מחיר ב'{list_name}'!",
                 email_body
             )
+            
             # Update last_notified_price
             conn2 = get_db_connection()
             cursor2 = conn2.cursor()
@@ -1226,12 +1219,14 @@ def check_price_drops():
             conn2.commit()
             cursor2.close()
             conn2.close()
+        else:
+            print(f"No price drop alert triggered. Drop: {drop_percent:.2f}% < threshold: {threshold}%")
 
 def start_scheduler():
     scheduler = BackgroundScheduler(timezone=pytz.timezone("Asia/Jerusalem"))
     # Schedule for 7:00 AM and 7:00 PM
     scheduler.add_job(check_price_drops, 'cron', hour=7, minute=0)
-    scheduler.add_job(check_price_drops, 'cron', hour=16, minute=51)
+    scheduler.add_job(check_price_drops, 'cron', hour=20, minute=23)
 
     # Initial supermarket data download: once a month (1st) at 03:00 
     scheduler.add_job(lambda: (download_initial_supermarket_data() or print("Finished: Initial supermarket data download")), 'cron', day=1, hour=3, minute=0)
@@ -1257,13 +1252,35 @@ def recommend_items_api():
     print("Start generating recommendations for user:", user_id)
     if not user_id:
         return jsonify({'error': 'Missing user_id'}), 400
+    
     try:
+        # Check if user has at least 3 saved lists
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT COUNT(*) as list_count FROM user_lists WHERE user_id = %s", (user_id,))
+        result = cursor.fetchone()
+        list_count = result['list_count'] if result else 0
+        cursor.close()
+        conn.close()
+        
+        if list_count < 3:
+            return jsonify({
+                'error': 'insufficient_data',
+                'message': 'כדי לקבל המלצות מותאמות אישית, עליך לבצע לפחות 3 חיפושי קניות נוספים',
+                'lists_needed': 3 - list_count
+            }), 400
+        
+        if not user_has_cluster(user_id):
+            print(f"User {user_id} has no cluster. Assigning one...")
+            assign_cluster_for_new_user(user_id)
+        
         # Replace with actual logic from HybridRecommender.py
         rec_items = generate_recommendations(user_id)  # should return a list of item_codes or full products
         return jsonify(rec_items)
     except Exception as e:
         print("Recommendation error:", e)
         return jsonify({'error': str(e)}), 500
+    
 
 # --- Flask routes below as normal ---
 @app.route('/api/subscribe-to-price-drop', methods=['POST'])
@@ -1299,7 +1316,7 @@ def subscribe_to_price_drop():
         conn.close()
         return jsonify({"message": "Subscription successful"}), 200
     except Exception as e:
-        print("❌ Error subscribing to price drop:", e)
+        print("Error subscribing to price drop:", e)
         return jsonify({"error": "Database error"}), 500
 
 

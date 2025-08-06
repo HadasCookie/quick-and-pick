@@ -1,45 +1,45 @@
 import React, { useRef, useEffect, useState } from "react";
-import styles from "./Recipes.module.css";
+import "./Recipes.css";
 
 const recipes = [
   {
     name: "עוגת גבינה ללא סוכר",
     image: "/images/noSuger.jpg",
-    text: `200 גרם שקדים טחונים
+    text: `200 גרם שקדים 
 80 גרם חמאה
 3 גבינה לבנה 5%
 3 ביצים
 2 כפיות תמצית וניל
-כפית קליפת לימון מגורדת
+כפית לימון 
 2 כפות סוויטאנגו תחליף סוכר
-2 יחידות שמנת חמוצה 15%`,
+2 יחידות שמנת חמוצה`,
   },
   {
     name: "פשטידה עמוסת חלבון",
     image: "/images/pashtida1.jpg",
     text: `2 כוסות ברוקולי מבושל
-  גביע יוגורט 0% שומן
+  גביע יוגורט 
   30 גרם גבינת מוצרלה
   כף אבקת מרק
-יחידה ביצה 1
-  כף גדושה קמח
+ ביצה 
+  כף קמח
   2 פרוסות לחם מלא
   1/2 כפית מלח
-כפית פלפל שחור 1/2
+כף פלפל שחור 
  1 כף בזיליקום`,
   },
 
   {
     name: "סופגניות טבעוניות",
     image: "/images/sufgi.jpg",
-    text: `500 גרם (3 כוסות וחצי) קמח
-  10 גרם שמרים יבשים או 30 גרם שמרים טריים
-  65 גרם (שליש כוס) סוכר
-  שני שליש כפית מלח
-  50 גרם (רבע כוס) שמן
+    text: `500 גרם קמח
+  30 גרם שמרים יבשים
+  65 גרם סוכר
+  2/3 כפית מלח
+  50 גרם שמן
   1 כפית תמצית וניל
-  1-2 כפות ברנדי או רום
-  280 מ"ל (כוס ועוד 3 כפות) חלב סויה, חמים
+  2 כפות רום
+  280 מ"ל משקה סויה
   1 יחידות שמן קנולה
   כוס ריבת תות
   כוס אבקת סוכר`,
@@ -47,11 +47,11 @@ const recipes = [
   {
     name: "רוזלך לוטוס",
     image: "/images/rozalah.jpg",
-    text: `3 כוסות (420 גרם) קמח לחם או קמח לבן
-  1 כפית (5 גרם) שמרים יבשים
-  רבע כפית מלח
+    text: `3 כוסות קמח לבן
+  1 כפית שמרים יבשים
+  1/4 כפית מלח
   4 כפות שמן קנולה
-  ממרח לוטוס
+  ממרח ביסקוויט לוטוס
   כוס אבקת סוכר`,
   },
   {
@@ -59,10 +59,10 @@ const recipes = [
     image: "/images/pizza.jpg",
     text: `2 כוסות קמח נטול גלוטן
   1/3 כוס קמח אורז
-  1 כפית גדושה אבקת אפייה
+  1 כפית אבקת אפייה
   1 ביצה
   2 כפות שמן זית
-  1/2 גביע יוגורט (100 מ”ל)
+  1/2 גביע יוגורט
   1/2 כפית מלח
   כוס רוטב לפיצה
   יחידה גבינת מוצרלה
@@ -74,15 +74,15 @@ const recipes = [
     text: `חבילת נודלס
   400 גרם חזה עוף
   3 גזרים
-  1 בצל סגול
-  7 פטריות
-  גמבה 
-  חצי כרוב
+  1 בצל 
+  7 פטריות 
+  פלפל אדום 
+  1/2 כרוב
   3 שיני שום כתוש
-  כף ג'ינג'ר
+ ג'ינג'ר
   כף שמן שומשום
-  רבע כוס סויה בהירה
-  רבע כוס טריאקי
+  1/4 כוס סויה 
+  1/4 כוס טריאקי
   4 כפות צ'ילי מתוק`,
   },
   {
@@ -93,19 +93,17 @@ const recipes = [
   40 גרם גבינת פרמזן
   200 גרם לחם מלא
   1/2 כפית מלח
-  3-4 כפות שמן זית
+  4 כפות שמן זית
   1 ביצה
   1 כף חרדל גרגרים
   1/2 שן שום
   1/2 חבילת אנשובי
-  1-2 כפות מיץ לימון
-  1-2 כפיות חומץ
+  2 כפות מיץ לימון
+  2 כפיות חומץ
   2 כפות רוטב סויה
   1 כוס שמן קנולה
   1/2 כפית טבסקו`,
   },
-
-  // ... add more!
 ];
 
 const DUP_FACTOR = 200; // How many times to repeat the cards for infinity effect
@@ -173,12 +171,12 @@ const Recipes = ({ onRecipeSelect }) => {
 
   return (
     <div
-      className={styles.carouselContainer}
+      className="carouselContainer"
       ref={containerRef}
       style={{ margin: "40px 0" }}
     >
       <div
-        className={styles.carouselTrack}
+        className="carouselTrack"
         style={{
           transform: `translateX(${-offset}px)`,
         }}
@@ -186,11 +184,11 @@ const Recipes = ({ onRecipeSelect }) => {
         {visibleRecipes.map((rec, idx) => (
           <div
             key={idx}
-            className={styles.recipeCard}
+            className="recipeCard"
             onClick={() => onRecipeSelect && onRecipeSelect(rec.text)}
           >
-            <img src={rec.image} alt={rec.name} className={styles.recipeImg} />
-            <div className={styles.recipeName}>{rec.name}</div>
+            <img src={rec.image} alt={rec.name} className="recipeImg" />
+            <div className="recipeName">{rec.name}</div>
           </div>
         ))}
       </div>

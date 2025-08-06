@@ -10,6 +10,8 @@ const InputRecipe = () => {
   const [recipeText, setRecipeText] = useState("");
   const [shoppingList, setShoppingList] = useState([]);
   const [products, setProducts] = useState([]);
+  const [isGeneratingList, setIsGeneratingList] = useState(false);
+  const [isFindingSupermarket, setIsFindingSupermarket] = useState(false);
   const navigate = useNavigate();
   const { setCartItems } = useContext(CartContext);
 
@@ -29,12 +31,15 @@ const InputRecipe = () => {
 
   const handleGenerateList = async () => {
     if (!recipeText.trim()) return;
+    setIsGeneratingList(true);
     try {
       const matchedItems = await matchIngredientsToProducts(recipeText);
       setShoppingList(matchedItems);
     } catch (error) {
       console.error("Failed to generate shopping list:", error);
       setShoppingList([]);
+    } finally {
+      setIsGeneratingList(false);
     }
   };
 
@@ -62,22 +67,36 @@ const InputRecipe = () => {
     });
   };
 
-  const handleSearchSupermarket = () => {
-    const cart = shoppingList
-      .filter((item) => item.barcode && item.matched_product !== null)
-      .map((item) => {
-        const product = products.find((p) => p.item_code === item.barcode);
-        return {
-          id: item.barcode,
-          name: item.name || item.matched_product || "מוצר לא מזוהה",
-          quantity: item.quantity || 1,
-          unit: item.unit || "",
-          image: product?.image_url || "",
-        };
-      });
+  const handleSearchSupermarket = async () => {
+    setIsFindingSupermarket(true);
 
-    setCartItems(cart);
-    navigate("/Address");
+    try {
+      const cart = shoppingList
+        .filter((item) => item.barcode && item.matched_product !== null)
+        .map((item) => {
+          const product = products.find((p) => p.item_code === item.barcode);
+          return {
+            id: item.barcode,
+            name: item.name || item.matched_product || "מוצר לא מזוהה",
+            quantity: item.quantity || 1,
+            unit: item.unit || "",
+            image: product?.image_url || "",
+          };
+        });
+
+      console.log("Setting cart items:", cart); // Debug log
+      setCartItems(cart);
+
+      // Add a small delay to show the loading screen before navigation
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      console.log("Navigating to /Address"); // Debug log
+      navigate("/Address");
+    } catch (error) {
+      console.error("Error in handleSearchSupermarket:", error);
+    } finally {
+      setIsFindingSupermarket(false);
+    }
   };
 
   const handleRecipeSelect = (text) => {
@@ -86,6 +105,20 @@ const InputRecipe = () => {
 
   return (
     <>
+      {isGeneratingList && (
+        <div className="loading-overlay">
+          <div className="spinner" />
+          <div className="loading-text">...יוצר רשימת קניות</div>
+        </div>
+      )}
+
+      {isFindingSupermarket && (
+        <div className="loading-overlay">
+          <div className="spinner" />
+          <div className="loading-text">...מחפש סופרים מתאימים</div>
+        </div>
+      )}
+
       <div className="recipe-container">
         <h1 className="recipe-title">🥣 הכנס מתכון</h1>
         <textarea
@@ -112,54 +145,29 @@ const InputRecipe = () => {
                 const isUnmatched = item.matched_product === null;
 
                 return (
-                  <li key={index} style={{ color: isUnmatched ? "red" : "black" }}>
+                  <li
+                    key={index}
+                    className={isUnmatched ? "unmatched-item" : "matched-item"}
+                  >
                     {isUnmatched ? (
-                      <div
-                        style={{
-                          display: "flex",
-                          flexDirection: "row-reverse",
-                          justifyContent: "space-between",
-                          width: "100%",
-                          alignItems: "center",
-                        }}
-                      >
+                      <div className="unmatched-item-container">
                         <div>
                           לא נמצא מוצר תואם עבור{" "}
-                          <strong>{item.ingredient || item.original_line}</strong>
+                          <strong>
+                            {item.ingredient || item.original_line}
+                          </strong>
                         </div>
-                        <button
-                          className="remove-button"
-                          onClick={() => handleRemoveItem(index)}
-                          style={{ marginRight: "12px" }}
-                        >
-                          הסר מהרשימה
-                        </button>
                       </div>
                     ) : (
-                      <div
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          alignItems: "flex-start",
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: "flex",
-                            flexDirection: "row-reverse",
-                            justifyContent: "space-between",
-                            width: "100%",
-                            alignItems: "center",
-                          }}
-                        >
+                      <div className="matched-item-container">
+                        <div className="matched-item-header">
                           <div>
-                            <strong>{item.name || item.matched_product}</strong> -{" "}
-                            {item.quantity || "1"} {item.unit || ""}
+                            <strong>{item.name || item.matched_product}</strong>{" "}
+                            - {item.quantity || "1"} {item.unit || ""}
                           </div>
                           <button
                             className="remove-button"
                             onClick={() => handleRemoveItem(index)}
-                            style={{ marginRight: "12px" }}
                           >
                             הסר
                           </button>
@@ -172,7 +180,6 @@ const InputRecipe = () => {
                               handleAlternativeSelect(index, e.target.value)
                             }
                             value=""
-                            style={{ marginTop: "8px", width: "100%" }}
                             dir="rtl"
                           >
                             <option disabled value="">

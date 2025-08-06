@@ -14,7 +14,6 @@ import { LocationProvider } from "./context/LocationContext";
 import { UserProvider } from "./context/UserContext";
 import { CartProvider } from "./context/CartContext";
 import { ListsProvider } from "./context/ListsContext";
-import ChatBot from "./components/pages/ChatBot";
 import SupermarketResults from "./components/pages/SupermarketResults";
 import ScrollToTop from "./components/ScrollToTop";
 
@@ -38,7 +37,6 @@ function App() {
                 <Route path="/MyProfile" element={<MyProfile />} />
                 <Route path="/input-recipe" element={<InputRecipe />} />
                 <Route path="/LogIn" element={<LogIn />} />
-                <Route path="/ChatBot" element={<ChatBot />} />
                 <Route path="/results" element={<SupermarketResults />} />
               </Routes>
             </Router>

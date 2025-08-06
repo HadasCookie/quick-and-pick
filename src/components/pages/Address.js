@@ -27,6 +27,10 @@ const Address = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Check if we should trigger recommendations
+  const searchParams = new URLSearchParams(location.search);
+  const shouldRecommend = searchParams.get("recommend") === "true";
+
   // Supermarket filters
   const [radius, setRadius] = useState(
     currentList?.supermarket_radius || user?.supermarket_radius || 5
@@ -220,15 +224,18 @@ const Address = () => {
         is_open_now: isOpenNow,
       });
 
-      console.log("🧾 Current user preferences:", user.preferences);
+      console.log(" Current user preferences:", user.preferences);
       console.log(
-        "🧾 Current user supermarket attributes:",
+        " Current user supermarket attributes:",
         user.supermarket_attributes
       );
-      console.log("🧾 Current list: ", currentList);
+      console.log(" Current list: ", currentList);
 
       navigate("/FindCheapest", {
-        state: { fromList: location.state?.fromList || false },
+        state: {
+          fromList: location.state?.fromList || false,
+          shouldRecommend: shouldRecommend,
+        },
       });
     }
   };

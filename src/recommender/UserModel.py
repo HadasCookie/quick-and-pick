@@ -175,6 +175,73 @@ def remove_outliers(df, threshold=3, max_outlier_ratio=0.2):
     return df[non_outliers]
 
 
+def assign_cluster_for_new_user(user_id):
+    print(f"Assigning cluster for new user {user_id}...")
+    
+    # Fetch users and lists
+    users = fetch_users()
+    user_lists = fetch_user_lists()
+    taxonomies = fetch_product_taxonomies()
+
+    # Build full user DataFrame
+    user_df = build_user_vectors(users, user_lists, taxonomies)
+
+    # Split into existing + new
+    existing_users = user_df[user_df["user_id"] != user_id]
+    new_user = user_df[user_df["user_id"] == user_id]
+
+    if new_user.empty:
+        print(f"User {user_id} not found or missing data.")
+        return
+
+    # Get user clusters for existing users
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT id, user_cluster FROM users WHERE user_cluster IS NOT NULL")
+    cluster_map = {row["id"]: row["user_cluster"] for row in cursor.fetchall()}
+    cursor.close()
+    conn.close()
+
+    existing_users = existing_users[existing_users["user_id"].isin(cluster_map.keys())]
+    existing_users["cluster_id"] = existing_users["user_id"].map(cluster_map)
+
+    if existing_users.empty:
+        print("No existing clustered users to compare against.")
+        return
+
+    # Prepare vectors
+    features = [col for col in user_df.columns if col not in ["user_id"]]
+    existing_features = existing_users[features].values
+    new_features = new_user[features].values
+
+    sim_matrix = cosine_similarity(new_features, existing_features)
+    most_similar_index = sim_matrix[0].argmax()
+    chosen_cluster = int(existing_users.iloc[most_similar_index]["cluster_id"])
+
+    # Save to DB
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE users SET user_cluster = %s WHERE id = %s
+    """, (chosen_cluster, user_id))
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    print(f"User {user_id} assigned to cluster {chosen_cluster}")
+
+def user_has_cluster(user_id: int) -> bool:
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT user_cluster FROM users WHERE id = %s", (user_id,))
+    result = cursor.fetchone()
+    cursor.close()
+    conn.close()
+
+    return result is not None and result[0] is not None
+
+
+
 def assign_outlier_clusters(original_df, clustered_df):
     features = [col for col in original_df.columns if col not in ["user_id", "cluster_id"]]
 

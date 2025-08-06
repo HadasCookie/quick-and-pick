@@ -53,6 +53,7 @@
   font-size: 20px;
   font-weight: bold;
   color: #3a1e4d;
+  margin-bottom: 20px;
 }
 
 .shopping-list ul {
@@ -62,7 +63,7 @@
 
 .shopping-list li {
   font-size: 16px;
-  padding: 5px;
+  padding: 15px;
   background: white;
   margin: 5px 0;
   border-radius: 5px;
@@ -76,7 +77,7 @@
   border-radius: 6px;
   padding: 6px 10px;
   font-size: 14px;
-  margin-left: 12px;
+  margin-right: 12px;
   cursor: pointer;
   transition: background 0.3s ease;
 }
@@ -93,4 +94,75 @@
   margin-right: 10px;
   background-color: #fff;
   cursor: pointer;
+  margin-top: 8px;
+  width: 100%;
+}
+
+.unmatched-item {
+  color: red;
+}
+
+.matched-item {
+  color: black;
+}
+
+.unmatched-item-container {
+  display: flex;
+  flex-direction: row-reverse;
+  justify-content: space-between;
+  width: 100%;
+  align-items: center;
+}
+
+.matched-item-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.matched-item-header {
+  display: flex;
+  flex-direction: row-reverse;
+  justify-content: space-between;
+  width: 100%;
+  align-items: center;
+}
+
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(247, 233, 252, 0.7);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.spinner {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #562c72;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-text {
+  margin-top: 12px;
+  color: #3a1e4d;
+  font-size: 16px;
+  font-weight: 500;
 }

@@ -138,6 +138,50 @@ const fakeProducts = [
   },
 ];
 
+// Create a mapping for fruits and vegetables images
+const fruitsAndVeggiesImageMap = {
+  תפוח: "/images/veggies/red-apple.jpg",
+  אננס: "/images/veggies/anannas.jpg",
+  תפוז: "/images/veggies/orange.jpg",
+  מלפפון: "/images/veggies/cucamber.jpg",
+  גמבה: "/images/veggies/gamba.jpg",
+  בצל: "/images/veggies/onion.jpg",
+  בטטה: "/images/veggies/sweet-potato.jpg",
+  כרוב: "/images/veggies/cabbage.jpg",
+  אבוקדו: "/images/veggies/avocado.jpg",
+  בננות: "/images/veggies/bannana.jpg",
+  סלק: "/images/veggies/beetroot.jpg",
+  חציל: "/images/veggies/eggplant.jpg",
+  חסה: "/images/veggies/lettece.jpg",
+  אבטיח: "/images/veggies/watermeloen.jpg",
+  לימון: "/images/veggies/lemon.jpg",
+  דלעת: "/images/veggies/butternut-squash.jpg",
+  ליים: "/images/veggies/lime.jpg",
+  תמר: "/images/veggies/dates.jpg",
+  דלורית: "/images/veggies/squash.jpg",
+};
+
+// Function to get appropriate image for fruits and vegetables
+const getFruitsAndVeggiesImage = (productName, dbImageUrl) => {
+  // If DB has an image, use it
+  if (dbImageUrl && dbImageUrl.trim() !== "") {
+    return dbImageUrl;
+  }
+
+  // Otherwise, try to find a matching image from fake products
+  // Check if the product name contains any of the mapped names
+  for (const [mappedName, imagePath] of Object.entries(
+    fruitsAndVeggiesImageMap
+  )) {
+    if (productName.includes(mappedName)) {
+      return imagePath;
+    }
+  }
+
+  // Default fallback for fruits and vegetables
+  return "/images/missing-img.jpg";
+};
+
 const categories = [
   { name: "פירות וירקות", icon: "🍏", hasSubcategories: true },
   { name: "מאפים", icon: "🥖" },
@@ -163,8 +207,7 @@ const FindCheapest = () => {
   const [selectedProductId, setSelectedProductId] = useState(null);
   const { user } = useContext(UserContext);
 
-  const { cartItems, setCartItems, addItem, removeItem, clearCart } =
-    useContext(CartContext);
+  const { cartItems, setCartItems, removeItem } = useContext(CartContext);
   const [rawCartItems, setRawCartItems] = useState([]);
   const { clearCart: contextClearCart } = useContext(CartContext);
 
@@ -182,6 +225,11 @@ const FindCheapest = () => {
 
   const [isLoading, setIsLoading] = useState(false);
   const [isRecommending, setIsRecommending] = useState(false);
+
+  // Pagination state for infinite scroll
+  const [displayedCount, setDisplayedCount] = useState(16);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const itemsPerPage = 16;
 
   const location = useLocation();
 
@@ -276,15 +324,27 @@ const FindCheapest = () => {
       try {
         const res = await fetch("http://localhost:5000/api/products");
         const data = await res.json();
-        const formatted = data.map((p) => ({
-          id: p.item_code,
-          name: p.item_name,
-          category: p.category,
-          subcategory: p.subcategory,
-          quantity: 0,
-          unit: p.unit_qty,
-          image: p.image_url || "/images/veggies/red-apple.jpg",
-        }));
+        const formatted = data.map((p) => {
+          let productImage;
+
+          // Special handling for fruits and vegetables
+          if (p.category === "פירות וירקות") {
+            productImage = getFruitsAndVeggiesImage(p.item_name, p.image_url);
+          } else {
+            // For other categories, use DB image or default fallback
+            productImage = p.image_url || "/images/missing-img.jpg";
+          }
+
+          return {
+            id: p.item_code,
+            name: p.item_name,
+            category: p.category,
+            subcategory: p.subcategory,
+            quantity: 0,
+            unit: p.unit_qty,
+            image: productImage,
+          };
+        });
         setProducts(formatted);
       } catch (err) {
         console.error("❌ Failed to load products:", err);
@@ -493,12 +553,85 @@ const FindCheapest = () => {
   }
 
   const displayedItems = productSearch ? searchResults : filteredProducts;
+  const currentlyDisplayedItems = displayedItems.slice(0, displayedCount);
+  const hasMoreItems = displayedCount < displayedItems.length;
+
+  // Reset displayed count when category or search changes
+  useEffect(() => {
+    setDisplayedCount(16);
+  }, [selectedCategory, selectedSubCategory, productSearch]);
+
+  // Infinite scroll logic
+  useEffect(() => {
+    const handleScroll = () => {
+      if (isLoadingMore || !hasMoreItems) return;
+
+      const scrollTop = document.documentElement.scrollTop;
+      const scrollHeight = document.documentElement.scrollHeight;
+      const clientHeight = document.documentElement.clientHeight;
+
+      // Load more when user is 200px from bottom
+      if (scrollTop + clientHeight >= scrollHeight - 200) {
+        setIsLoadingMore(true);
+
+        // Simulate loading delay for better UX
+        setTimeout(() => {
+          setDisplayedCount((prev) => prev + itemsPerPage);
+          setIsLoadingMore(false);
+        }, 500);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [isLoadingMore, hasMoreItems, itemsPerPage]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const fetchUserPreferences = async () => {
+      try {
+        const response = await fetch(
+          `http://localhost:5000/api/user-preferences?user_id=${user.id}`
+        );
+        const data = await response.json();
+
+        if (data) {
+          // Update user context
+          setUserLists(data.lists || []);
+          // You can also set other user preferences here if needed
+        }
+      } catch (error) {
+        console.error("Error fetching user preferences:", error);
+      }
+    };
+
+    fetchUserPreferences();
+  }, [user, setUserLists]);
 
   const handleClearCart = () => {
     contextClearCart(); // clears cartItems in context
     setRawCartItems([]); // clears local rawCartItems
     if (user?.email) {
       localStorage.removeItem(`cartItems_${user.email}`);
+    }
+  };
+
+  // Add a custom remove item handler that updates both states
+  const handleRemoveItem = (itemId) => {
+    // Remove from rawCartItems
+    setRawCartItems((prevRaw) => prevRaw.filter((item) => item.id !== itemId));
+
+    // Remove from cartItems using context function
+    removeItem(itemId);
+
+    // Update localStorage
+    if (user?.email) {
+      const updatedRaw = rawCartItems.filter((item) => item.id !== itemId);
+      localStorage.setItem(
+        `cartItems_${user.email}`,
+        JSON.stringify(updatedRaw)
+      );
     }
   };
 
@@ -655,6 +788,15 @@ const FindCheapest = () => {
       );
       const recItems = await response.json();
 
+      // Check if user doesn't have enough data for recommendations
+      if (response.status === 400 && recItems.error === "insufficient_data") {
+        alert(
+          `🤖 ${recItems.message}\n\n בצע עוד ${recItems.lists_needed} חיפושים כדי לקבל המלצות מותאמות אישית!`
+        );
+        setIsRecommending(false);
+        return;
+      }
+
       if (!Array.isArray(recItems) || recItems.length === 0) {
         alert("לא נמצאו המלצות עבורך.");
         setIsRecommending(false);
@@ -684,6 +826,26 @@ const FindCheapest = () => {
       setIsRecommending(false);
     }
   };
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentIndex((prevIndex) => (prevIndex + 1) % images.length);
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [images.length]);
+
+  // Check if we should automatically run recommendations
+  useEffect(() => {
+    if (location.state?.shouldRecommend && products.length > 0 && user?.id) {
+      // Add a small delay to ensure the component is fully loaded
+      const timer = setTimeout(() => {
+        handleRecommendProducts();
+      }, 5000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [location.state?.shouldRecommend, products.length, user?.id]);
 
   return (
     <>
@@ -757,7 +919,7 @@ const FindCheapest = () => {
           isOpen={isCartOpen}
           onClose={() => setIsCartOpen(false)}
           cartItems={cartItems}
-          removeItem={removeItem}
+          removeItem={handleRemoveItem}
           clearCart={handleClearCart}
           currentList={currentList}
           onFindNearbyStores={handleFindNearbyStores}
@@ -1354,66 +1516,100 @@ const FindCheapest = () => {
               </div>
             </div>
           ) : (
-            displayedItems.map((product) => (
-              <div
-                key={product.id}
-                className="product-card"
-                onClick={() => handleProductClick(product.id)}
-              >
-                <img
-                  src={product.image}
-                  alt={product.name}
-                  className="product-image"
-                />
-                <div className="product-info">
-                  <h3>{product.name}</h3>
-                  {product.quantity > 0 && (
-                    <div className="quantity-container">
+            <>
+              {currentlyDisplayedItems.map((product) => (
+                <div
+                  key={product.id}
+                  className="product-card"
+                  onClick={() => handleProductClick(product.id)}
+                >
+                  <img
+                    src={product.image}
+                    alt={product.name}
+                    className="product-image"
+                  />
+                  <div className="product-info">
+                    <h3>{product.name}</h3>
+                    {product.quantity > 0 && (
+                      <div className="quantity-container">
+                        <button
+                          className="quantity-btn"
+                          onClick={() =>
+                            updateQuantity(
+                              product.id,
+                              product.quantity -
+                                (product.category === "פירות וירקות" ? 0.5 : 1)
+                            )
+                          }
+                          disabled={
+                            product.quantity <=
+                            (product.category === "פירות וירקות" ? 0.5 : 1)
+                          }
+                        >
+                          -
+                        </button>
+                        <span>
+                          {product.quantity}{" "}
+                          {product.category === "פירות וירקות"
+                            ? "ק״ג"
+                            : "יחידות"}
+                        </span>
+                        <button
+                          className="quantity-btn"
+                          onClick={() =>
+                            updateQuantity(
+                              product.id,
+                              product.quantity +
+                                (product.category === "פירות וירקות" ? 0.5 : 1)
+                            )
+                          }
+                        >
+                          +
+                        </button>
+                      </div>
+                    )}
+                    {(product.quantity >= 0.5 || product.quantity >= 1) && (
                       <button
-                        className="quantity-btn"
-                        onClick={() =>
-                          updateQuantity(
-                            product.id,
-                            product.quantity -
-                              (product.category === "פירות וירקות" ? 0.5 : 1)
-                          )
-                        }
-                        disabled={
-                          product.quantity <=
-                          (product.category === "פירות וירקות" ? 0.5 : 1)
-                        }
+                        className="add-to-cart"
+                        onClick={() => addToCart(product)}
                       >
-                        -
+                        הוסף לעגלה
                       </button>
-                      <span>
-                        {product.quantity}{" "}
-                        {product.category === "פירות וירקות" ? "ק״ג" : "יחידות"}
-                      </span>
-                      <button
-                        className="quantity-btn"
-                        onClick={() =>
-                          updateQuantity(
-                            product.id,
-                            product.quantity +
-                              (product.category === "פירות וירקות" ? 0.5 : 1)
-                          )
-                        }
-                      >
-                        +
-                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {/* Loading More Indicator */}
+              {isLoadingMore && (
+                <div className="loading-more-container">
+                  <div className="loading-more-spinner"></div>
+                  <span className="loading-more-text">
+                    טוען מוצרים נוספים...
+                  </span>
+                </div>
+              )}
+
+              {/* Products Info */}
+              {displayedItems.length > 0 && (
+                <div className="products-info">
+                  מציג {currentlyDisplayedItems.length} מתוך{" "}
+                  {displayedItems.length} מוצרים
+                  {hasMoreItems && !isLoadingMore && (
+                    <div className="scroll-hint">
+                      גלול למטה לטעינת מוצרים נוספים
                     </div>
                   )}
-                  {(product.quantity >= 0.5 || product.quantity >= 1) && (
-                    <button
-                      className="add-to-cart"
-                      onClick={() => addToCart(product)}
-                    >
-                      הוסף לעגלה
-                    </button>
-                  )}
                 </div>
-              </div>
-            ))
+              )}
+
+              {/* End of results indicator */}
+              {!hasMoreItems && displayedItems.length > 16 && (
+                <div className="end-of-results">
+                  זה הכל! הצגת כל המוצרים הזמינים 🎉
+                </div>
+              )}
+            </>
           )}
           {cartMessage && (
             <div className="cart-notification">{cartMessage}</div>

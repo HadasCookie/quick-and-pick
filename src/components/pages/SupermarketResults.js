@@ -61,6 +61,16 @@ const SupermarketResults = () => {
   const top3 = sorted.slice(0, 3).map((s) => s.store_id);
 
   const handleSendSMS = (store) => {
+    // Get the current cart items for SMS
+    const currentCartItems = JSON.parse(
+      localStorage.getItem(`cartItems_${user?.email}`) || "[]"
+    );
+
+    if (currentCartItems.length === 0) {
+      alert("העגלה ריקה - אין מה לשלוח");
+      return;
+    }
+
     alert(`📩 שליחת רשימה של ${store.store_name} תתווסף בהמשך.`);
   };
 
