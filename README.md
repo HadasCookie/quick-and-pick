@@ -37,6 +37,7 @@ A full-stack web application that helps users compare grocery prices across mult
 - **Real-time Price Data** - Automated scraping from major supermarket chains
 - **Email Notifications** - SMTP integration for price alerts
 - **WhatsApp API** - Twilio integration for list sharing
+- **OpenAI ChatGPT** – Product categorization (automated classification of supermarket items)
 
 ## 📋 Prerequisites
 
@@ -238,22 +239,6 @@ quick-and-pick/
 
 ## 🐛 Troubleshooting
 
-### Common Issues
-
-1. **Database Connection Failed**
-
-   - Ensure your IP is whitelisted in GCP
-   - Verify database credentials in .env file
-
-2. **Price Alerts Not Working**
-
-   - Check SMTP credentials
-   - Verify email configuration
-
-3. **WhatsApp Sharing Failed**
-   - Confirm Twilio credentials
-   - Check phone number format
-
 ### Logs & Debugging
 
 - Backend logs: Check terminal running `python src/server.py`
@@ -271,11 +256,6 @@ This is an academic project. For questions or issues:
 ## 📄 License
 
 This project is developed for academic purposes as part of a university course.
-
-## 📞 Contact & Support
-
-For database access, API credentials, or technical support:
-**Contact the project team** - credentials and access information available upon request.
 
 ---
 
