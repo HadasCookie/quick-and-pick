@@ -177,6 +177,7 @@ def remove_outliers(df, threshold=3, max_outlier_ratio=0.2):
 
 def assign_cluster_for_new_user(user_id):
     print(f"Assigning cluster for new user {user_id}...")
+    user_id = int(user_id)
     
     # Fetch users and lists
     users = fetch_users()

@@ -1,70 +1,293 @@
-# Getting Started with Create React App
+# Quick & Pick - Smart Supermarket Price Comparison
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A full-stack web application that helps users compare grocery prices across multiple Israeli supermarket chains, find the best deals, and manage their shopping lists efficiently.
 
-## Available Scripts
+## 🌟 Features
 
-In the project directory, you can run:
+- **Smart Product Search**: Browse 50,000+ products across categories with intelligent search and autocomplete
+- **Multi-Store Price Comparison**: Compare prices across major Israeli supermarket chains
+- **AI-Powered Recommendations**: Get personalized product suggestions based on purchase history
+- **Shopping List Management**: Create, save, and share shopping lists with family and friends
+- **Price Drop Alerts**: Get notified when prices drop on your favorite products
+- **Location-Based Search**: Find nearby stores within your preferred radius
+- **WhatsApp Integration**: Share shopping lists directly via WhatsApp
+- **Responsive Design**: Optimized for both desktop and mobile devices
+- **User Preferences**: Set dietary restrictions, budget limits, and store preferences
 
-### `npm start`
+## 🛠️ Technology Stack
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+### Frontend
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+- **React** 18.2.0 - Modern UI framework
+- **React Router** - Client-side routing
+- **Context API** - State management
+- **Vanilla CSS** - Custom responsive styling
 
-### `npm test`
+### Backend
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+- **Python Flask** - RESTful API server
+- **MySQL** - Primary database (hosted on Google Cloud Platform)
+- **Machine Learning**: Transformers, scikit-learn, pandas for recommendations
+- **Background Tasks**: APScheduler for automated price updates
+- **External APIs**: Integration with Israeli supermarket chains
 
-### `npm run build`
+### Infrastructure
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+- **Google Cloud Platform** - Database hosting
+- **Real-time Price Data** - Automated scraping from major supermarket chains
+- **Email Notifications** - SMTP integration for price alerts
+- **WhatsApp API** - Twilio integration for list sharing
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## 📋 Prerequisites
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+- **Python** 3.8 or higher
+- **Node.js** 16.x or higher
+- **npm** 8.x or higher
+- **Database Access** - Contact project team for GCP database credentials
 
-### `npm run eject`
+## 🚀 Installation & Setup
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+### 1. Clone the Repository
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+```bash
+git clone [repository-url]
+cd quick-and-pick
+```
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+### 2. Backend Setup (Python/Flask)
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+```bash
+# Install Python dependencies
+pip install -r requirements.txt
 
-## Learn More
+# Create environment file
+cp .env.example .env
+# Edit .env with provided credentials
+```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+### 3. Frontend Setup (React)
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+```bash
+# Install Node.js dependencies
+npm install
 
-### Code Splitting
+# Create frontend environment file
+echo "REACT_APP_API_URL=http://localhost:5000" > .env
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+### 4. Database Configuration
 
-### Analyzing the Bundle Size
+**Important**: The database is hosted on Google Cloud Platform. To run this project:
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+1. **Contact the project team** for:
 
-### Making a Progressive Web App
+   - Database password
+   - IP whitelist access to GCP MySQL instance
+   - API keys for full functionality (Twilio, SMTP)
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+2. **Database Details**:
+   - Host: `34.78.145.126`
+   - Database: `quickpick`
+   - Tables: Pre-configured with 50,000+ products and pricing data
 
-### Advanced Configuration
+### 5. Environment Variables
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+Create `.env` file in the server directory:
 
-### Deployment
+```env
+DB_HOST=34.78.145.126
+DB_USER=root
+DB_PASSWORD=[CONTACT_TEAM_FOR_PASSWORD]
+DB_NAME=quickpick
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+# Email Service (Optional)
+SMTP_USER=[CONTACT_TEAM_FOR_CREDENTIALS]
+SMTP_PASS=[CONTACT_TEAM_FOR_CREDENTIALS]
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
 
-### `npm run build` fails to minify
+# WhatsApp API (Optional)
+TWILIO_ACCOUNT_SID=[CONTACT_TEAM_FOR_CREDENTIALS]
+TWILIO_AUTH_TOKEN=[CONTACT_TEAM_FOR_CREDENTIALS]
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+### 6. Start the Application
+
+**Backend** (Terminal 1):
+
+```bash
+python src/server.py
+# Server runs on http://localhost:5000
+```
+
+**Frontend** (Terminal 2):
+
+```bash
+npm start
+# Application opens at http://localhost:3000
+```
+
+## 📱 Usage
+
+1. **Register/Login** - Create an account or log in
+2. **Set Preferences** - Configure dietary restrictions, budget, and store preferences
+3. **Browse Products** - Use categories or search to find products
+4. **Build Shopping List** - Add products to your cart with quantities
+5. **Compare Stores** - Find the best prices across nearby supermarkets
+6. **Get Recommendations** - Discover new products based on your shopping history
+7. **Set Price Alerts** - Get notified when prices drop on your lists
+8. **Share Lists** - Send shopping lists via WhatsApp to family members
+
+## 🏗️ Project Structure
+
+```
+quick-and-pick/
+├── public/                 # Static assets and images
+│   └── images/            # Product images organized by category
+├── src/
+│   ├── components/        # React components
+│   │   ├── pages/        # Main page components
+│   │   └── common/       # Reusable components
+│   ├── context/          # React Context providers
+│   ├── cloud/            # Data scraping and uploading modules
+│   ├── recommender/      # ML recommendation system
+│   ├── nlp/             # Natural language processing
+│   └── server.py        # Flask backend server
+├── requirements.txt      # Python dependencies
+├── package.json         # Node.js dependencies
+└── README.md           # This file
+```
+
+## 🔧 Available Scripts
+
+### Frontend
+
+- `npm start` - Start development server
+- `npm test` - Run test suite
+- `npm run build` - Build for production
+- `npm run eject` - Eject from Create React App
+
+### Backend
+
+- `python src/server.py` - Start Flask server
+- Automated tasks run via APScheduler:
+  - Price updates every 4 hours
+  - Email alerts twice daily
+  - ML model updates daily
+
+## 🔌 API Endpoints
+
+### Authentication
+
+- `POST /api/register` - User registration
+- `POST /api/login` - User login
+- `POST /api/change-password` - Change password
+
+### Products & Shopping Lists
+
+- `GET /api/products` - Get all products
+- `POST /api/save-list` - Save shopping list
+- `GET /api/user-lists` - Get user's shopping lists
+- `GET /api/user-last-list` - Get user's most recent list
+
+### Store Comparison
+
+- `GET /api/find-nearby-stores/:listId` - Find stores within radius
+- `POST /api/evaluate-supermarkets/:listId` - Compare prices across stores
+
+### Recommendations & Alerts
+
+- `GET /api/recommend-items` - Get AI product recommendations
+- `POST /api/subscribe-to-price-drop` - Set up price alerts
+- `GET /api/user-alerts` - Get user's active alerts
+
+### Communication
+
+- `POST /api/send-list-sms` - Send list via WhatsApp
+- `GET /api/suggestions` - Get product suggestions from external APIs
+
+## 🤖 Machine Learning Features
+
+- **Collaborative Filtering** - User-based product recommendations
+- **Content-Based Filtering** - Product similarity recommendations
+- **Hybrid Approach** - Combines multiple recommendation strategies
+- **User Clustering** - Groups similar users for better recommendations
+- **Price Prediction** - Forecasts price trends for better alerts
+
+## 🔒 Security & Privacy
+
+- **Password Hashing** - bcrypt encryption for user passwords
+- **SQL Injection Prevention** - Parameterized queries
+- **CORS Configuration** - Controlled API access
+- **Input Validation** - Server-side data sanitization
+- **Environment Variables** - Secure credential management
+
+## 📊 Database Schema
+
+- **users** - User accounts and preferences
+- **products** - Product catalog (50,000+ items)
+- **user_lists** - Saved shopping lists
+- **stores** - Supermarket locations and details
+- **store_prices** - Current pricing data (millions of records)
+- **price_drop_alerts** - User price monitoring subscriptions
+
+## 🔄 Automated Background Tasks
+
+- **Price Data Updates** - Every 4 hours from supermarket APIs
+- **User Recommendations** - Daily ML model updates
+- **Price Drop Alerts** - Twice daily (7 AM & 7 PM)
+- **Full Database Refresh** - Monthly complete data sync
+
+## 🌐 External Integrations
+
+- **Israeli Supermarket Chains** - Real-time price data
+- **FoodsDictionary.co.il** - Product suggestions API
+- **CHP.co.il** - Autocomplete functionality
+- **Twilio WhatsApp API** - List sharing
+- **Google Cloud MySQL** - Database hosting
+- **SMTP Email Service** - Price alert notifications
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+1. **Database Connection Failed**
+
+   - Ensure your IP is whitelisted in GCP
+   - Verify database credentials in .env file
+
+2. **Price Alerts Not Working**
+
+   - Check SMTP credentials
+   - Verify email configuration
+
+3. **WhatsApp Sharing Failed**
+   - Confirm Twilio credentials
+   - Check phone number format
+
+### Logs & Debugging
+
+- Backend logs: Check terminal running `python src/server.py`
+- Frontend errors: Open browser developer console
+- Database issues: Check GCP Cloud SQL logs
+
+## 👥 Contributing
+
+This is an academic project. For questions or issues:
+
+1. Check existing documentation
+2. Contact the project team for credentials and access
+3. Review the troubleshooting section
+
+## 📄 License
+
+This project is developed for academic purposes as part of a university course.
+
+## 📞 Contact & Support
+
+For database access, API credentials, or technical support:
+**Contact the project team** - credentials and access information available upon request.
+
+---
+
+**Note**: This application integrates with real Israeli supermarket chains and requires specific credentials for full functionality. Academic reviewers will be provided with appropriate access levels for evaluation purposes.

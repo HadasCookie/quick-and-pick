@@ -72,6 +72,13 @@ const SignUp = () => {
       return;
     }
 
+    if (!formData.gender) {
+      setMessage("אנא בחר מגדר ❌");
+      setIsLoading(false);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
     try {
       const response = await fetch("http://localhost:5000/api/register", {
         method: "POST",

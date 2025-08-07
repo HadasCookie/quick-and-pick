@@ -1,0 +1,237 @@
+# Quick & Pick - Supermarket Price Comparison App
+# Requirements and Dependencies
+
+## Frontend Dependencies (React) - See package.json
+# Core React dependencies are managed via npm/package.json:
+# react: ^19.1.1
+# react-dom: ^19.1.1
+# react-router-dom: ^7.7.1
+# react-scripts: ^5.0.1
+# js-confetti: ^0.12.0
+# @react-google-maps/api: ^2.20.6
+
+## Backend Dependencies (Python/Flask)
+# Core Flask dependencies
+Flask==2.3.2
+Flask-CORS==4.0.0
+python-dotenv==1.0.0
+
+# Database
+mysql-connector-python==8.1.0
+
+# Authentication & Security
+bcrypt==4.0.1
+
+# Machine Learning & NLP
+transformers==4.33.2
+scikit-learn==1.3.0
+pandas==2.0.3
+scipy==1.10.1
+
+# HTTP Requests
+requests==2.31.0
+
+# Text Processing
+rapidfuzz==3.1.1
+
+# Scheduling
+APScheduler==3.10.4
+pytz==2023.3
+
+# Communication APIs
+twilio==8.5.0
+
+# Testing Dependencies
+pytest==7.4.0
+pytest-html==3.2.0
+selenium==4.11.2
+
+## System Requirements
+# Python: 3.8 or higher
+# Node.js: 16.x or higher (project tested with Node.js 20.15.0)
+# npm: 8.x or higher (project tested with npm 10.7.0)
+# Chrome/ChromeDriver: Latest version (for Selenium tests)
+
+## Database Configuration (Google Cloud Platform)
+# Database Host: 34.78.145.126 (GCP MySQL Instance)
+# Database Name: quickpick
+# Database User: root
+# Database Password: [Contact project team for credentials]
+
+## IMPORTANT: Database Access Setup for Reviewers
+# The database is hosted on Google Cloud Platform (GCP)
+# To access the database, reviewers need to:
+# 1. Contact the project team to whitelist their IP address in GCP firewall rules
+# 2. Obtain the database password from the project team
+# 3. Request access to the following API keys (if testing full functionality):
+#    - SMTP credentials for email notifications
+#    - Twilio credentials for WhatsApp messaging
+#    - Any other third-party API keys
+
+## Environment Variables Required (.env file in server directory)
+DB_HOST=34.78.145.126
+DB_USER=root
+DB_PASSWORD=[CONTACT_TEAM_FOR_PASSWORD]
+DB_NAME=quickpick
+
+# Email Service (Optional - for price alerts)
+SMTP_USER=[CONTACT_TEAM_FOR_CREDENTIALS]
+SMTP_PASS=[CONTACT_TEAM_FOR_CREDENTIALS]
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+
+# Twilio WhatsApp API (Optional - for sharing lists)
+TWILIO_ACCOUNT_SID=[CONTACT_TEAM_FOR_CREDENTIALS]
+TWILIO_AUTH_TOKEN=[CONTACT_TEAM_FOR_CREDENTIALS]
+
+# Frontend Environment Variables (.env in root directory)
+REACT_APP_API_URL=http://localhost:5000
+
+## Setup Instructions
+1. Install Python (3.8 or higher)
+2. Install Node.js (16.x or higher)
+3. Install Chrome browser and ChromeDriver (for testing)
+4. Clone the repository
+5. Contact project team for:
+   - Database password
+   - IP whitelist access to GCP database
+   - API keys (if testing full functionality)
+
+6. Install Python backend dependencies:
+   cd quick-and-pick
+   pip install -r requirements.txt
+
+7. Install frontend dependencies:
+   npm install
+   # This will install the current dependencies from package.json:
+   # - React 19.1.1, React DOM 19.1.1, React Router DOM 7.7.1
+   # - @react-google-maps/api, axios, js-confetti
+   # - Development tools: testing libraries, react-scripts
+
+8. Configure environment variables:
+   - Create .env file in root directory (for React)
+   - Create .env file in server directory (for Python)
+   - Add provided credentials
+
+9. Start the application:
+   - Backend: python -m src.server (runs on http://localhost:5000)
+   - Frontend: npm start (runs on http://localhost:3000)
+
+10. Run tests (optional):
+    - Python tests: pytest tests/
+    - Frontend tests: npm test
+
+## Testing Setup
+# The project includes automated testing with:
+- pytest for Python backend testing
+- Selenium WebDriver for end-to-end testing
+- Test credentials in tests/login_credentials.json
+- Automated recipe-to-shopping-list flow testing
+
+# To run tests:
+# 1. Ensure both frontend and backend are running
+# 2. Install ChromeDriver or use --headless mode
+# 3. Run: pytest tests/
+
+## Database Schema (Pre-configured in GCP)
+# The database is already set up with the following tables:
+- users: User authentication and preferences
+- products: Product catalog with categories (50,000+ items)
+- shopping_lists (user_lists): Saved user shopping lists
+- stores: Supermarket information and locations
+- store_prices: Product prices per store (millions of records)
+- price_drop_alerts: User price monitoring subscriptions
+
+## Machine Learning Models
+# The project includes several ML components:
+- Product recommendation system using transformers
+- User clustering for personalized recommendations
+- Price prediction algorithms
+- Taxonomy classification for products
+
+## External API Integrations
+- FoodsDictionary.co.il API for product suggestions
+- CHP.co.il autocomplete API
+- Supermarket price scraping from major Israeli chains
+- Google Maps integration for store locations
+- Twilio WhatsApp API for list sharing
+- SMTP email service for price alerts
+
+## Scheduled Tasks
+# The system runs automated background tasks:
+- Price data updates every 4 hours
+- User recommendation updates daily
+- Price drop alerts twice daily (7 AM & 7 PM)
+- Full price database refresh monthly
+
+## Features Implemented
+- User authentication (login/register)
+- Product browsing with categories and subcategories
+- Shopping cart functionality with infinite scroll
+- Shopping list management and sharing
+- Multi-store price comparison (requires 75% product match for alerts)
+- AI-powered product recommendations
+- Price drop alerts and notifications
+- WhatsApp list sharing
+- Email notifications
+- Responsive design for mobile/desktop
+
+## API Endpoints
+# Authentication
+- POST /api/register - User registration
+- POST /api/login - User login
+- POST /api/change-password - Change user password
+
+# Products & Lists
+- GET /api/products - Get all products
+- POST /api/save-list - Save shopping list
+- GET /api/user-lists - Get user's shopping lists
+- GET /api/user-last-list - Get user's last shopping list
+- POST /api/update-list-name - Update list name
+- POST /api/update-list-price - Update list price
+- POST /api/update-list-favorite - Toggle favorite status
+
+# Store Comparison
+- GET /api/find-nearby-stores/:listId - Find nearby stores
+- POST /api/evaluate-supermarkets/:listId - Compare store prices
+
+# Recommendations & Alerts
+- GET /api/recommend-items - Get AI product recommendations
+- POST /api/subscribe-to-price-drop - Subscribe to price alerts
+- GET /api/user-alerts - Get user's price alerts
+- DELETE /api/delete-alert/:id - Delete price alert
+
+# Communication
+- POST /api/send-list-sms - Send list via WhatsApp
+- GET /api/suggestions - Get product suggestions from external APIs
+
+# User Management
+- POST /api/update-preferences - Update user preferences
+- POST /api/close-account - Deactivate user account
+
+## Browser Support
+- Chrome 90+
+- Firefox 88+
+- Safari 14+
+- Edge 90+
+
+## Performance Considerations
+- Infinite scroll pagination (16 items per load)
+- Debounced search (300ms delay)
+- Optimized database queries with indexing
+- Background task scheduling for data updates
+- Context-based state management
+- Image optimization and lazy loading
+
+## Security Features
+- Password hashing with bcrypt
+- SQL injection prevention with parameterized queries
+- CORS configuration for API access
+- Input validation and sanitization
+- Environment-based configuration management
+
+## Contact Information
+For database access, API keys, or technical questions:
+[Contact project team for credentials and access]
+
+Note: This is an academic project with real integrations to Israeli supermarket chains and external APIs.

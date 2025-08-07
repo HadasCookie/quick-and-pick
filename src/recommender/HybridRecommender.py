@@ -1,8 +1,51 @@
 import json
 from collections import Counter
+import re
 from src.DBConnector import get_db_connection
 
-# --- Step 1: Fetch user budget ---
+# Map Hebrew preference keys to English taxonomy keys
+HEB_TO_ENG_PREF_KEYS = {
+    "טבעוני": "is_vegan",
+    "צמחוני": "is_vegetarian",
+    "ללא_גלוטן": "is_gluten_free",
+    "כשרות": "is_kosher",
+    "חלבון_גבוה": "is_high_protein",
+    "ללא_סוכר": "is_sugar_free"
+}
+
+# List of common adjectives to exclude in product name normalization
+EXCLUDED_ADJECTIVES = {
+    "בהיר", "כהה", "צפוני", "דרומי", "שחורה", "לבנה", "קל", "מלא", "קטן", "גדול",
+    "אישי", "משפחתי", "פרוס", "טרי", "קפוא", "יבש", "מבושל", "מתובל", "מעושן",
+    "גרוס", "שלם", "טחון", "דק", "עבה", "רגיל", "אורגני", "נטול", "מהיר", "איטי",
+    "איכותי", "מיובא", "מקומי", "שקוף", "מרוכז", "דל", "עשיר", "קלאסי", "חום", "לבן",
+    "אדום", "צהוב", "ירוק", "שחור", "אפור", "זהוב", "כתום", "כחול", "מעורב", "מעורבת",
+    "מסחרי", "טעים", "חדש", "ישן", "ממותג", "חסכוני", "יקר", "זול", "ביתי", "חיצוני",
+    "תעשייתי", "אישי", "גדול", "קטן", "דק", "עבה", "חם", "קר", "מוגז", "טבעי"
+}
+
+# Normalize product name to group similar items
+def normalize_product_name(name):
+    name = re.sub(r"[^א-ת ]", "", name)
+    name = re.sub(r"\s+", " ", name).strip()
+    tokens = name.split()
+    for token in tokens:
+        if token not in EXCLUDED_ADJECTIVES:
+            return token  # use only the first non-adjective word
+    return ""  # fallback
+
+
+# Get mapping of item_code to item_name
+def get_product_names():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT item_code, item_name FROM products")
+    names = {row["item_code"]: row["item_name"] for row in cursor.fetchall()}
+    cursor.close()
+    conn.close()
+    return names
+
+# Get user's budget
 def fetch_user_budget(user_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -12,8 +55,28 @@ def fetch_user_budget(user_id):
     conn.close()
     return result["budget_amount"] if result else 0
 
+# Get user's dietary preferences in English key format
+def get_user_dietary_preferences(user_id):
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT dietary_preferences FROM users WHERE id = %s", (user_id,))
+    result = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    
+    preferences = {}
+    if result and result["dietary_preferences"]:
+        try:
+            raw_prefs = json.loads(result["dietary_preferences"])
+            for heb_key, val in raw_prefs.items():
+                eng_key = HEB_TO_ENG_PREF_KEYS.get(heb_key)
+                if eng_key:
+                    preferences[eng_key] = val
+        except json.JSONDecodeError:
+            pass
+    return preferences
 
-# --- Step 2: Fetch user purchased item counts ---
+# Count user's purchased products
 def get_user_purchase_counts(user_id):
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -21,9 +84,8 @@ def get_user_purchase_counts(user_id):
     
     item_counts = Counter()
     for row in cursor.fetchall():
-        product_json = row[0]
         try:
-            products = json.loads(product_json)
+            products = json.loads(row[0])
             for item_code, details in products.items():
                 quantity = details.get("quantity", 1)
                 item_counts[item_code] += quantity
@@ -34,8 +96,7 @@ def get_user_purchase_counts(user_id):
     conn.close()
     return item_counts
 
-
-# --- Step 3: Get cluster peer users ---
+# Get other users from the same cluster (excluding self)
 def get_cluster_user_ids(user_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -50,7 +111,7 @@ def get_cluster_user_ids(user_id):
     conn.close()
     return users
 
-# --- Step 4: Taxonomy mapping for products ---
+# Get product taxonomy mapping
 def get_product_taxonomies():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -65,7 +126,7 @@ def get_product_taxonomies():
     conn.close()
     return tax_map
 
-# --- Step 5: Fetch prices ---
+# Get average price per product
 def get_product_prices():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -79,7 +140,7 @@ def get_product_prices():
     conn.close()
     return prices
 
-# --- Step 6: Similarity between taxonomies ---
+# Compare taxonomy similarity using set intersection
 def taxonomy_similarity(tax1, tax2):
     set1 = set(tax1.get("NutritionalPreferences", {}).keys())
     set2 = set(tax2.get("NutritionalPreferences", {}).keys())
@@ -87,13 +148,13 @@ def taxonomy_similarity(tax1, tax2):
         return 0.0
     return len(set1 & set2) / len(set1 | set2)
 
-# --- Step 7: Main recommendation function ---
+# Generate product recommendations for user
 def generate_recommendations(user_id, max_items=10):
     budget = fetch_user_budget(user_id)
     user_purchases = get_user_purchase_counts(user_id)
     cluster_users = get_cluster_user_ids(user_id)
+    preferences = get_user_dietary_preferences(user_id)
 
-    # --- Items from cluster peers ---
     cluster_items = Counter()
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -110,46 +171,47 @@ def generate_recommendations(user_id, max_items=10):
     cursor.close()
     conn.close()
 
-    # --- Taxonomies and prices ---
     taxonomies = get_product_taxonomies()
     prices = get_product_prices()
-
-    # --- Taxonomies of user's purchased items ---
+    product_names = get_product_names()
     purchased_taxonomies = [taxonomies[i] for i in user_purchases if i in taxonomies]
 
-    # --- Score computation ---
     scores = []
     for item_code, tax in taxonomies.items():
         if item_code not in prices:
             continue
 
-        # Content-based similarity
+        product_prefs = tax.get("NutritionalPreferences", {})
+        incompatible = any(
+            preferences.get(k, False) and not product_prefs.get(k, False)
+            for k in preferences
+        )
+        if incompatible:
+            continue
+
         sim_score = max([taxonomy_similarity(tax, p_tax) for p_tax in purchased_taxonomies], default=0)
-
-        # Collaborative score (popularity in cluster)
         cluster_popularity = cluster_items[item_code] / max(len(cluster_users), 1)
-
-        # Self popularity (how much the user purchased it)
         self_popularity = user_purchases.get(item_code, 0)
-
-        # Normalize self_popularity to [0, 1]
         normalized_self_pop = self_popularity / max(user_purchases.values(), default=1)
 
-        # Final combined score
         score = 0.5 * sim_score + 0.3 * cluster_popularity + 0.2 * normalized_self_pop
         scores.append((item_code, prices[item_code], score))
 
-    # --- Select top-scoring products within budget ---
     scores.sort(key=lambda x: x[2], reverse=True)
+    added_roots = set()
     recommendations = []
     total = 0
+
     for item_code, price, _ in scores:
+        name = product_names.get(item_code, "")
+        root = normalize_product_name(name)
+        if root in added_roots:
+            continue
         if total + price <= budget:
             recommendations.append(item_code)
+            added_roots.add(root)
             total += price
         if len(recommendations) >= max_items:
             break
 
     return recommendations
-
-

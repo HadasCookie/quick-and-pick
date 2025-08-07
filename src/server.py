@@ -1226,7 +1226,7 @@ def start_scheduler():
     scheduler = BackgroundScheduler(timezone=pytz.timezone("Asia/Jerusalem"))
     # Schedule for 7:00 AM and 7:00 PM
     scheduler.add_job(check_price_drops, 'cron', hour=7, minute=0)
-    scheduler.add_job(check_price_drops, 'cron', hour=20, minute=23)
+    scheduler.add_job(check_price_drops, 'cron', hour=19, minute=0)
 
     # Initial supermarket data download: once a month (1st) at 03:00 
     scheduler.add_job(lambda: (download_initial_supermarket_data() or print("Finished: Initial supermarket data download")), 'cron', day=1, hour=3, minute=0)
