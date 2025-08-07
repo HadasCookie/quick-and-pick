@@ -33,7 +33,7 @@ A full-stack web application that helps users compare grocery prices across mult
 
 ### Infrastructure
 
-- **Google Cloud Platform** - Database hosting
+- **Google Cloud Platform** - Database hosting & Stores and syncs supermarket data files for backend imports
 - **Real-time Price Data** - Automated scraping from major supermarket chains
 - **Email Notifications** - SMTP integration for price alerts
 - **WhatsApp API** - Twilio integration for list sharing
@@ -222,15 +222,6 @@ quick-and-pick/
 - **Input Validation** - Server-side data sanitization
 - **Environment Variables** - Secure credential management
 
-## 📊 Database Schema
-
-- **users** - User accounts and preferences
-- **products** - Product catalog (50,000+ items)
-- **user_lists** - Saved shopping lists
-- **stores** - Supermarket locations and details
-- **store_prices** - Current pricing data (millions of records)
-- **price_drop_alerts** - User price monitoring subscriptions
-
 ## 🔄 Automated Background Tasks
 
 - **Price Data Updates** - Every 4 hours from supermarket APIs
@@ -241,8 +232,6 @@ quick-and-pick/
 ## 🌐 External Integrations
 
 - **Israeli Supermarket Chains** - Real-time price data
-- **FoodsDictionary.co.il** - Product suggestions API
-- **CHP.co.il** - Autocomplete functionality
 - **Twilio WhatsApp API** - List sharing
 - **Google Cloud MySQL** - Database hosting
 - **SMTP Email Service** - Price alert notifications
