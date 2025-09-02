@@ -117,7 +117,7 @@ TWILIO_AUTH_TOKEN=[CONTACT_TEAM_FOR_CREDENTIALS]
 **Backend** (Terminal 1):
 
 ```bash
-python src/server.py
+python3 -m src.server
 # Server runs on http://localhost:5000
 ```
 
