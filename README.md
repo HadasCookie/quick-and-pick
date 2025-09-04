@@ -237,6 +237,29 @@ quick-and-pick/
 - **Google Cloud MySQL** - Database hosting
 - **SMTP Email Service** - Price alert notifications
 
+## 🔗 Code Map (Deep Links)
+
+Quick links to important parts of the codebase for easier navigation.
+
+### Backend (Flask API)
+- **Main Server & Routes** — [src/server.py](https://github.com/HadasCookie/quick-and-pick/blob/main/src/server.py)
+- **Ingredient Matcher API ** — [src/nlp/recipe_api.py](https://github.com/HadasCookie/quick-and-pick/blob/main/src/nlp/recipe_api.py)
+
+### Recommender System (ML)
+- **Recommender Package (hybrid logic, clustering, utilities)** — [src/recommender/](https://github.com/HadasCookie/quick-and-pick/tree/main/src/recommender)
+- **Hybrid Recommender (scoring logic)** — [src/recommender/HybridRecommender.py](https://github.com/HadasCookie/quick-and-pick/blob/main/src/recommender/HybridRecommender.py)
+- **User Model (clustering & user vectors)** — [src/recommender/UserModel.py](https://github.com/HadasCookie/quick-and-pick/blob/main/src/recommender/UserModel.py)
+- **Taxonomy Updater (nutritional flags & categories via GPT)** — [src/recommender/TaxonomyUpdater.py](https://github.com/HadasCookie/quick-and-pick/blob/main/src/recommender/TaxonomyUpdater.py)
+- **DB Connector (data access layer for recommender)** — [src/recommender/DBConnector.py](https://github.com/HadasCookie/quick-and-pick/blob/main/src/recommender/DBConnector.py)
+
+### Helpful Direct Links 
+- **Quick&Pick Ingredient Matcher** → https://github.com/HadasCookie/quick-and-pick/blob/main/src/nlp/recipe_api.py  
+- **Quick&Pick Data Collection and Storage System** → https://github.com/HadasCookie/quick-and-pick/tree/main/src/cloud  
+- **Quick&Pick Recommender System** → https://github.com/HadasCookie/quick-and-pick/tree/main/src/recommender  
+
+> **Tip:** To link directly to a function or specific lines of code, open the file on GitHub, click the line numbers to generate a permalink, and append `#L<start>-L<end>` to the URL.
+
+
 ## 🐛 Troubleshooting
 
 ### Logs & Debugging
